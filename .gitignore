@@ -9,3 +9,20 @@ env/
 ENV/
 .venv
 
+# Archivos de configuración sensibles
+config.py
+
+# Archivos de backup
+*.backup
+*.backup_*
+*backup*
+Libro1.csv copy*
+
+# Archivos CSV de datos (opcional - descomentar si no quieres versionarlos)
+# Libro1.csv
+# Libro1_con_diferencia.csv
+
+# Archivos temporales
+*.tmp
+*.log
+
