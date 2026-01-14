@@ -13,7 +13,7 @@ jobs:
   process:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Necesario para hacer commit y push
+      contents: write
     
     steps:
     - name: Checkout repository
@@ -36,17 +36,7 @@ jobs:
         JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
         JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
       run: |
-        python3 << 'PYTHON_SCRIPT'
-        import os
-        config_content = f"""JIRA_CONFIG = {{
-    'server': '{os.environ['JIRA_SERVER']}',
-    'email': '{os.environ['JIRA_EMAIL']}',
-    'api_token': '{os.environ['JIRA_API_TOKEN']}'
-}}"""
-        with open('config.py', 'w') as f:
-            f.write(config_content)
-        print('Config.py creado desde secrets')
-        PYTHON_SCRIPT
+        python3 -c "import os; config = {'server': os.environ['JIRA_SERVER'], 'email': os.environ['JIRA_EMAIL'], 'api_token': os.environ['JIRA_API_TOKEN']}; f = open('config.py', 'w'); f.write(f\"JIRA_CONFIG = {config}\n\"); f.close(); print('Config.py creado desde secrets')"
     
     - name: Get issues from Jira
       run: |
