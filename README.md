@@ -105,13 +105,16 @@ El archivo `Libro1.csv` tiene las siguientes columnas:
 
 ## Personas para First Response
 
-El script busca asignaciones a las siguientes personas:
-- Angela Garnica Centanaro
-- Daniel Lara
-- Juan Sarmiento Montoya
-- Julian Sarmiento Florez
-- Oscar Riveros Rodriguez
-- Sebastian Ahumada Segrera
+El script busca asignaciones a personas específicas configuradas en `config.py` bajo la variable `FIRST_RESPONSE_ASSIGNEES`. 
+
+Para configurarlo, edita `config.py` y agrega:
+```python
+FIRST_RESPONSE_ASSIGNEES = [
+    'Nombre Persona 1',
+    'Nombre Persona 2',
+    # ... más nombres
+]
+```
 
 ## Notas
 

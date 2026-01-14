@@ -32,6 +32,11 @@ git push -u origin main
    - Name: `JIRA_API_TOKEN`
    - Value: Tu token de API de Jira
 
+   **Secret 4: FIRST_RESPONSE_ASSIGNEES** (Opcional)
+   - Name: `FIRST_RESPONSE_ASSIGNEES`
+   - Value: Lista de nombres separados por comas (ej: `Persona 1,Persona 2,Persona 3`)
+   - Si no se configura, el workflow funcionará pero no buscará First Response
+
 ### 3. Verificar el Workflow
 
 El workflow está configurado para ejecutarse automáticamente:

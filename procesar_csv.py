@@ -71,15 +71,22 @@ def procesar_csv(archivo_entrada='Libro1.csv', archivo_salida=None):
     encontrados_first_response = 0
     errores = 0
     
-    # Lista de personas para First response
-    target_assignees = [
-        'Angela Garnica Centanaro',
-        'Daniel Lara',
-        'Juan Sarmiento Montoya',
-        'Julian Sarmiento Florez',
-        'Oscar Riveros Rodriguez',
-        'Sebastian Ahumada Segrera'
-    ]
+    # Obtener lista de personas para First response desde config
+    try:
+        import config
+        target_assignees = getattr(config, 'FIRST_RESPONSE_ASSIGNEES', [])
+        if not target_assignees:
+            print("[!] Advertencia: No se encontró FIRST_RESPONSE_ASSIGNEES en config.py")
+            target_assignees = []
+    except ImportError:
+        # Si no hay config.py, intentar desde variables de entorno
+        import os
+        assignees_str = os.getenv('FIRST_RESPONSE_ASSIGNEES', '')
+        if assignees_str:
+            target_assignees = [a.strip() for a in assignees_str.split(',')]
+        else:
+            print("[!] Advertencia: No se encontró configuración de FIRST_RESPONSE_ASSIGNEES")
+            target_assignees = []
     
     for i, issue_data in enumerate(issues, 1):
         issue_key = issue_data['Clave']

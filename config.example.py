@@ -8,3 +8,10 @@ JIRA_CONFIG = {
     'email': 'tu-email@ejemplo.com',
     'api_token': 'tu-api-token-aqui'
 }
+
+# Lista de personas para First Response (asignaciones)
+FIRST_RESPONSE_ASSIGNEES = [
+    'Persona 1',
+    'Persona 2',
+    'Persona 3'
+]

@@ -34,12 +34,26 @@ jobs:
         JIRA_SERVER: ${{ secrets.JIRA_SERVER }}
         JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
         JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        FIRST_RESPONSE_ASSIGNEES: ${{ secrets.FIRST_RESPONSE_ASSIGNEES }}
       run: |
         echo "JIRA_CONFIG = {" > config.py
         echo "    'server': '$JIRA_SERVER'," >> config.py
         echo "    'email': '$JIRA_EMAIL'," >> config.py
         echo "    'api_token': '$JIRA_API_TOKEN'" >> config.py
         echo "}" >> config.py
+        echo "" >> config.py
+        echo "# Lista de personas para First Response" >> config.py
+        if [ -n "$FIRST_RESPONSE_ASSIGNEES" ]; then
+          echo "FIRST_RESPONSE_ASSIGNEES = [" >> config.py
+          IFS=',' read -ra ADDR <<< "$FIRST_RESPONSE_ASSIGNEES"
+          for i in "${ADDR[@]}"; do
+            echo "    '$(echo $i | xargs)'," >> config.py
+          done
+          echo "]" >> config.py
+        else
+          echo "# FIRST_RESPONSE_ASSIGNEES no configurado en secrets" >> config.py
+          echo "FIRST_RESPONSE_ASSIGNEES = []" >> config.py
+        fi
         echo "Config.py creado desde secrets"
     
     - name: Get issues from Jira
