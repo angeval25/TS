@@ -36,25 +36,41 @@ jobs:
         JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
         FIRST_RESPONSE_ASSIGNEES: ${{ secrets.FIRST_RESPONSE_ASSIGNEES }}
       run: |
-        echo "JIRA_CONFIG = {" > config.py
-        echo "    'server': '$JIRA_SERVER'," >> config.py
-        echo "    'email': '$JIRA_EMAIL'," >> config.py
-        echo "    'api_token': '$JIRA_API_TOKEN'" >> config.py
-        echo "}" >> config.py
-        echo "" >> config.py
-        echo "# Lista de personas para First Response" >> config.py
-        if [ -n "$FIRST_RESPONSE_ASSIGNEES" ]; then
-          echo "FIRST_RESPONSE_ASSIGNEES = [" >> config.py
-          IFS=',' read -ra ADDR <<< "$FIRST_RESPONSE_ASSIGNEES"
-          for i in "${ADDR[@]}"; do
-            echo "    '$(echo $i | xargs)'," >> config.py
-          done
-          echo "]" >> config.py
-        else
-          echo "# FIRST_RESPONSE_ASSIGNEES no configurado en secrets" >> config.py
-          echo "FIRST_RESPONSE_ASSIGNEES = []" >> config.py
-        fi
-        echo "Config.py creado desde secrets"
+        python3 << 'PYEOF'
+        import os
+        
+        # Crear JIRA_CONFIG
+        config_content = f"""JIRA_CONFIG = {{
+    'server': '{os.environ.get('JIRA_SERVER', '')}',
+    'email': '{os.environ.get('JIRA_EMAIL', '')}',
+    'api_token': '{os.environ.get('JIRA_API_TOKEN', '')}'
+}}
+
+# Lista de personas para First Response
+"""
+        
+        # Agregar FIRST_RESPONSE_ASSIGNEES si existe
+        assignees_str = os.environ.get('FIRST_RESPONSE_ASSIGNEES', '')
+        if assignees_str:
+            assignees_list = [a.strip() for a in assignees_str.split(',') if a.strip()]
+            config_content += "FIRST_RESPONSE_ASSIGNEES = [\n"
+            for assignee in assignees_list:
+                config_content += f"    '{assignee}',\n"
+            config_content += "]\n"
+        else:
+            config_content += "# FIRST_RESPONSE_ASSIGNEES no configurado en secrets\n"
+            config_content += "FIRST_RESPONSE_ASSIGNEES = []\n"
+        
+        # Escribir archivo
+        with open('config.py', 'w') as f:
+            f.write(config_content)
+        
+        print('Config.py creado desde secrets')
+        if assignees_str:
+            print(f'First Response Assignees configurados: {len(assignees_list)} personas')
+        else:
+            print('Advertencia: FIRST_RESPONSE_ASSIGNEES no está configurado')
+        PYEOF
     
     - name: Get issues from Jira
       run: |
