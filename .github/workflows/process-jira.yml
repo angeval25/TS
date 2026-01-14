@@ -2,10 +2,9 @@ name: Process Jira CSV
 
 on:
   schedule:
-    # Ejecutar cada 9 horas: 6 AM, 3 PM (15:00), y 12 AM (00:00) UTC
-    # Ajusta la zona horaria según necesites
-    - cron: '0 6 * * *'   # 6:00 AM UTC
-    - cron: '0 15 * * *'  # 3:00 PM UTC
+    # Ejecutar cada 8 horas: 8 AM, 4 PM (16:00), y 12 AM (00:00) UTC
+    - cron: '0 8 * * *'   # 8:00 AM UTC
+    - cron: '0 16 * * *'  # 4:00 PM UTC (16:00)
     - cron: '0 0 * * *'   # 12:00 AM UTC (medianoche)
   workflow_dispatch:  # Permite ejecución manual
 
