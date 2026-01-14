@@ -7,57 +7,6 @@ import csv
 import os
 from datetime import datetime
 
-def parse_jira_date(date_str):
-    """Convierte fecha de Jira a datetime"""
-    if not date_str or date_str.strip() == '':
-        return None
-    
-    try:
-        # Formato: 2025-12-30T19:15:15.375-0500
-        # Remover los milisegundos y el offset para simplificar
-        date_part = date_str.split('.')[0]  # 2025-12-30T19:15:15
-        return datetime.fromisoformat(date_part)
-    except Exception as e:
-        return None
-
-def calcular_diferencias_horas(issue_data):
-    """
-    Calcula las diferencias en horas para las columnas I.First Response, I.Escalamiento, I.respuesta Sub
-    """
-    rsoc_str = issue_data.get('with RSOC', '').strip()
-    local_str = issue_data.get('with Local Security', '').strip()
-    closed_str = issue_data.get('Closed', '').strip()
-    first_response_str = issue_data.get('First response', '').strip()
-    
-    rsoc_date = parse_jira_date(rsoc_str) if rsoc_str else None
-    local_date = parse_jira_date(local_str) if local_str else None
-    closed_date = parse_jira_date(closed_str) if closed_str else None
-    first_response_date = parse_jira_date(first_response_str) if first_response_str else None
-    
-    # I.First Response: First response - with RSOC
-    if first_response_date and rsoc_date:
-        diferencia = first_response_date - rsoc_date
-        horas = diferencia.total_seconds() / 3600
-        issue_data['I.First Response'] = f"{horas:.2f}"
-    else:
-        issue_data['I.First Response'] = ''
-    
-    # I.Escalamiento: with Local Security - First response
-    if local_date and first_response_date:
-        diferencia = local_date - first_response_date
-        horas = diferencia.total_seconds() / 3600
-        issue_data['I.Escalamiento'] = f"{horas:.2f}"
-    else:
-        issue_data['I.Escalamiento'] = ''
-    
-    # I.respuesta Sub: Closed - First response
-    if closed_date and first_response_date:
-        diferencia = closed_date - first_response_date
-        horas = diferencia.total_seconds() / 3600
-        issue_data['I.respuesta Sub'] = f"{horas:.2f}"
-    else:
-        issue_data['I.respuesta Sub'] = ''
-
 def procesar_csv(archivo_entrada='Libro1.csv', archivo_salida=None):
     """
     Procesa el CSV y llena las columnas con fechas de cambio de estado
@@ -98,10 +47,7 @@ def procesar_csv(archivo_entrada='Libro1.csv', archivo_salida=None):
                             'with RSOC': row.get('with RSOC', '').strip(),
                             'with Local Security': row.get('with Local Security', '').strip(),
                             'Closed': row.get('Closed', '').strip(),
-                            'First response': row.get('First response', '').strip(),
-                            'I.First Response': row.get('I.First Response', '').strip(),
-                            'I.Escalamiento': row.get('I.Escalamiento', '').strip(),
-                            'I.respuesta Sub': row.get('I.respuesta Sub', '').strip()
+                            'First response': row.get('First response', '').strip()
                         })
             print(f"[OK] Se encontraron {len(issues)} issues en el CSV (encoding: {encoding})\n")
             break
@@ -226,21 +172,11 @@ def procesar_csv(archivo_entrada='Libro1.csv', archivo_salida=None):
     print(f"    First response encontrados: {encontrados_first_response}")
     print(f"    Errores: {errores}")
     
-    # Calcular diferencias en horas
-    print(f"\n[*] Calculando diferencias en horas...")
-    calculados_diferencias = 0
-    for issue_data in issues:
-        calcular_diferencias_horas(issue_data)
-        if issue_data.get('I.First Response') or issue_data.get('I.Escalamiento') or issue_data.get('I.respuesta Sub'):
-            calculados_diferencias += 1
-    print(f"[OK] Diferencias calculadas para {calculados_diferencias} issues")
-    
     # Escribir el CSV actualizado
     print(f"\n[*] Guardando resultados en: {archivo_salida}")
     try:
         with open(archivo_salida, 'w', newline='', encoding='utf-8') as f:
-            fieldnames = ['Clave', 'with RSOC', 'with Local Security', 'Closed', 'First response',
-                         'I.First Response', 'I.Escalamiento', 'I.respuesta Sub']
+            fieldnames = ['Clave', 'with RSOC', 'with Local Security', 'Closed', 'First response']
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             
             writer.writeheader()
