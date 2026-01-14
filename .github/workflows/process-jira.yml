@@ -36,18 +36,14 @@ jobs:
         JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
         JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
       run: |
-        # Crear config.py desde secrets de GitHub
-        python -c "
-        import os
-        config_content = f'''JIRA_CONFIG = {{
-            'server': '{os.environ['JIRA_SERVER']}',
-            'email': '{os.environ['JIRA_EMAIL']}',
-            'api_token': '{os.environ['JIRA_API_TOKEN']}'
-        }}'''
-        with open('config.py', 'w') as f:
-            f.write(config_content)
-        print('Config.py creado desde secrets')
-        '''
+        cat <<EOF > config.py
+JIRA_CONFIG = {
+    'server': '${JIRA_SERVER}',
+    'email': '${JIRA_EMAIL}',
+    'api_token': '${JIRA_API_TOKEN}'
+}
+EOF
+        echo "Config.py creado desde secrets"
     
     - name: Get issues from Jira
       run: |
