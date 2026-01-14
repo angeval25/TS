@@ -1,4 +1,4 @@
-name: Process Jira CSV
+name: Process Jira XLSX
 
 on:
   schedule:
@@ -66,18 +66,18 @@ jobs:
     - name: Get issues from Jira
       run: |
         echo "Obteniendo issues desde Jira..."
-        python obtener_issues_jql.py Libro1.csv 200
+        python obtener_issues_jql.py Libro1.xlsx 200
     
-    - name: Process CSV and get dates
+    - name: Process XLSX and get dates
       run: |
-        echo "Procesando CSV para obtener fechas..."
+        echo "Procesando XLSX para obtener fechas..."
         python procesar_csv.py
     
     - name: Commit and push changes
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add Libro1.csv
+        git add Libro1.xlsx
         if git diff --staged --quiet; then
           echo "No hay cambios para commitear"
         else

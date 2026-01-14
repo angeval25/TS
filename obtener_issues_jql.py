@@ -1,17 +1,17 @@
 """
-Script para obtener issues desde Jira usando JQL y actualizar Libro1.csv
-Ejecuta una consulta JQL y llena la columna Clave en Libro1.csv
+Script para obtener issues desde Jira usando JQL y actualizar Libro1.xlsx
+Ejecuta una consulta JQL y llena la columna Clave en Libro1.xlsx
 """
 from jira_integration import JiraIntegration
-import csv
 import os
+from openpyxl import load_workbook, Workbook
 
-def obtener_issues_y_actualizar_csv(archivo_csv='Libro1.csv', max_results=1000):
+def obtener_issues_y_actualizar_xlsx(archivo_xlsx='Libro1.xlsx', max_results=1000):
     """
-    Obtiene issues desde Jira usando JQL y actualiza Libro1.csv con las claves
+    Obtiene issues desde Jira usando JQL y actualiza Libro1.xlsx con las claves
     
     Args:
-        archivo_csv: Nombre del archivo CSV a actualizar
+        archivo_xlsx: Nombre del archivo XLSX a actualizar
         max_results: Número máximo de resultados a obtener
     """
     
@@ -59,28 +59,40 @@ def obtener_issues_y_actualizar_csv(archivo_csv='Libro1.csv', max_results=1000):
     if len(claves) > 10:
         print(f"    ... y {len(claves) - 10} más")
     
-    # Leer CSV existente si existe para preservar otras columnas
+    # Leer XLSX existente si existe para preservar otras columnas
     issues_existentes = {}
     columnas_existentes = ['Clave']
     
-    if os.path.exists(archivo_csv):
-        print(f"\n[*] Leyendo archivo existente: {archivo_csv}")
+    if os.path.exists(archivo_xlsx):
+        print(f"\n[*] Leyendo archivo existente: {archivo_xlsx}")
         try:
-            with open(archivo_csv, 'r', encoding='utf-8-sig', newline='') as f:
-                reader = csv.DictReader(f)
-                # Obtener todas las columnas del archivo existente
-                if reader.fieldnames:
-                    columnas_existentes = list(reader.fieldnames)
-                    # Asegurar que 'Clave' esté primero
-                    if 'Clave' in columnas_existentes:
-                        columnas_existentes.remove('Clave')
-                    columnas_existentes = ['Clave'] + columnas_existentes
+            wb = load_workbook(archivo_xlsx, data_only=True)
+            ws = wb.active
+            
+            # Leer encabezados
+            headers = []
+            for cell in ws[1]:
+                if cell.value:
+                    headers.append(cell.value)
+                else:
+                    headers.append('')
+            
+            columnas_existentes = headers.copy()
+            
+            # Leer datos existentes
+            for row in ws.iter_rows(min_row=2, values_only=False):
+                issue_dict = {}
+                for idx, cell in enumerate(row):
+                    if idx < len(headers):
+                        col_name = headers[idx]
+                        if col_name:
+                            value = cell.value
+                            issue_dict[col_name] = str(value) if value is not None else ''
                 
-                # Leer datos existentes
-                for row in reader:
-                    clave = row.get('Clave', '').strip()
-                    if clave:
-                        issues_existentes[clave] = row
+                clave = issue_dict.get('Clave', '').strip()
+                if clave:
+                    issues_existentes[clave] = issue_dict
+            
             print(f"[OK] Se leyeron {len(issues_existentes)} issues existentes")
         except Exception as e:
             print(f"[!] Error al leer archivo existente: {e}")
@@ -111,34 +123,44 @@ def obtener_issues_y_actualizar_csv(archivo_csv='Libro1.csv', max_results=1000):
                 if col not in issue:
                     issue[col] = ''
     
-    # Guardar CSV actualizado
-    print(f"\n[*] Guardando {len(nuevos_issues)} issues en: {archivo_csv}")
+    # Guardar XLSX actualizado
+    print(f"\n[*] Guardando {len(nuevos_issues)} issues en: {archivo_xlsx}")
     try:
-        with open(archivo_csv, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=columnas_existentes)
-            writer.writeheader()
-            for issue in nuevos_issues:
-                writer.writerow(issue)
+        wb = Workbook()
+        ws = wb.active
         
+        # Escribir encabezados
+        for col_idx, col_name in enumerate(columnas_existentes, start=1):
+            ws.cell(row=1, column=col_idx, value=col_name)
+        
+        # Escribir datos
+        for row_idx, issue in enumerate(nuevos_issues, start=2):
+            for col_idx, col_name in enumerate(columnas_existentes, start=1):
+                value = issue.get(col_name, '')
+                ws.cell(row=row_idx, column=col_idx, value=value)
+        
+        wb.save(archivo_xlsx)
         print(f"[OK] Archivo guardado exitosamente")
         print(f"\n[*] Resumen:")
-        print(f"    Total issues en CSV: {len(nuevos_issues)}")
+        print(f"    Total issues en XLSX: {len(nuevos_issues)}")
         print(f"    Issues nuevos agregados: {len(nuevos_issues) - len(issues_existentes)}")
         print(f"    Issues existentes preservados: {len(issues_existentes)}")
         
     except Exception as e:
-        print(f"[ERROR] Error al guardar el CSV: {e}")
+        print(f"[ERROR] Error al guardar el XLSX: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     import sys
     
-    # Permitir especificar el archivo CSV como argumento
-    archivo = sys.argv[1] if len(sys.argv) > 1 else "Libro1.csv"
+    # Permitir especificar el archivo XLSX como argumento
+    archivo = sys.argv[1] if len(sys.argv) > 1 else "Libro1.xlsx"
     
     # Permitir especificar max_results como segundo argumento
     max_results = int(sys.argv[2]) if len(sys.argv) > 2 else 1000
     
-    obtener_issues_y_actualizar_csv(archivo, max_results)
+    obtener_issues_y_actualizar_xlsx(archivo, max_results)
     
     print("\n" + "=" * 80)
     print("[OK] Proceso completado")
