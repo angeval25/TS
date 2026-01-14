@@ -1,0 +1,72 @@
+name: Process Jira CSV
+
+on:
+  schedule:
+    # Ejecutar cada 9 horas: 6 AM, 3 PM (15:00), y 12 AM (00:00) UTC
+    # Ajusta la zona horaria según necesites
+    - cron: '0 6 * * *'   # 6:00 AM UTC
+    - cron: '0 15 * * *'  # 3:00 PM UTC
+    - cron: '0 0 * * *'   # 12:00 AM UTC (medianoche)
+  workflow_dispatch:  # Permite ejecución manual
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Necesario para hacer commit y push
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    
+    - name: Configure Jira credentials
+      env:
+        JIRA_SERVER: ${{ secrets.JIRA_SERVER }}
+        JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+      run: |
+        # Crear config.py desde secrets de GitHub
+        python -c "
+        import os
+        config_content = f'''JIRA_CONFIG = {{
+            'server': '{os.environ['JIRA_SERVER']}',
+            'email': '{os.environ['JIRA_EMAIL']}',
+            'api_token': '{os.environ['JIRA_API_TOKEN']}'
+        }}'''
+        with open('config.py', 'w') as f:
+            f.write(config_content)
+        print('Config.py creado desde secrets')
+        '''
+    
+    - name: Get issues from Jira
+      run: |
+        echo "Obteniendo issues desde Jira..."
+        python obtener_issues_jql.py Libro1.csv 200
+    
+    - name: Process CSV and get dates
+      run: |
+        echo "Procesando CSV para obtener fechas..."
+        python procesar_csv.py
+    
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add Libro1.csv
+        if git diff --staged --quiet; then
+          echo "No hay cambios para commitear"
+        else
+          git commit -m "Auto-update: Process Jira issues $(date +'%Y-%m-%d %H:%M:%S UTC')"
+          git push
+        fi
