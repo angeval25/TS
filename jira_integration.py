@@ -229,6 +229,7 @@ class JiraIntegration:
     def get_assignee_change_date(self, issue_key: str, target_assignees: List[str]) -> Optional[Dict]:
         """
         Obtiene la fecha exacta en que un caso fue asignado a alguna de las personas de la lista.
+        Si hay múltiples asignaciones, retorna la PRIMERA ocurrencia (más antigua).
         
         Args:
             issue_key: La clave del issue (ej: TPGSOC-1329200)
@@ -239,10 +240,14 @@ class JiraIntegration:
         """
         changelog = self.get_changelog(issue_key)
         
+        # Ordenar changelog por fecha (del más antiguo al más nuevo) para asegurar que tomamos el PRIMER cambio
+        # Convertir fechas a objetos datetime para comparar correctamente
+        changelog_sorted = sorted(changelog, key=lambda x: x['date'] if x['date'] else datetime.min)
+        
         # Normalizar nombres para comparación (remover acentos, mayúsculas)
         target_assignees_lower = [name.lower().strip() for name in target_assignees]
         
-        for change in changelog:
+        for change in changelog_sorted:
             if change['field'].lower() == 'assignee' and change['to']:
                 assignee_name = change['to'].lower().strip()
                 # Verificar si el nombre asignado coincide con alguno de la lista
