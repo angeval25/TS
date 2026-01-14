@@ -199,6 +199,7 @@ class JiraIntegration:
     def get_status_change_date(self, issue_key: str, target_status: str = "with RSOC") -> Optional[Dict]:
         """
         Obtiene la fecha exacta en que un caso cambió a un estado específico.
+        Si el estado aparece varias veces, retorna la PRIMERA ocurrencia (más antigua).
         
         Args:
             issue_key: La clave del issue (ej: TPGSOC-1329200)
@@ -209,8 +210,12 @@ class JiraIntegration:
         """
         changelog = self.get_changelog(issue_key)
         
-        for change in changelog:
-            if change['field'].lower() == 'status' and target_status.lower() in change['to'].lower():
+        # Ordenar changelog por fecha (del más antiguo al más nuevo) para asegurar que tomamos el PRIMER cambio
+        # Convertir fechas a objetos datetime para comparar correctamente
+        changelog_sorted = sorted(changelog, key=lambda x: x['date'] if x['date'] else datetime.min)
+        
+        for change in changelog_sorted:
+            if change['field'].lower() == 'status' and change['to'] and target_status.lower() in change['to'].lower():
                 return {
                     'issue_key': issue_key,
                     'status': change['to'],
