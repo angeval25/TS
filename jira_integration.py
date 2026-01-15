@@ -73,7 +73,7 @@ class JiraIntegration:
     
     def search_issues(self, jql_query, max_results=50):
         """
-        Search for issues using JQL
+        Search for issues using JQL con paginación correcta
         
         Args:
             jql_query: Consulta JQL
@@ -82,86 +82,46 @@ class JiraIntegration:
         Returns:
             Lista de objetos Issue de la biblioteca jira
         """
-        # Usar requests directamente con el endpoint correcto de API v3
-        # El endpoint /rest/api/3/search/jql requiere un formato específico
-        url = f"{self.server}/rest/api/3/search/jql"
-            
-        auth = HTTPBasicAuth(self.email, self.api_token)
-        headers = {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        }
-        
         all_issues = []
-        next_page_token = None
+        start_at = 0
+        page_size = 100  # Jira permite hasta 100 por página
         page_num = 0
         
         while len(all_issues) < max_results:
-            # Formato correcto para /rest/api/3/search/jql
-            # El body debe ser un objeto JSON con el campo 'jql' y opcionalmente 'nextPageToken'
-            payload = {
-                'jql': jql_query,
-                'maxResults': min(max_results - len(all_issues), 50)  # API v3 limita a 50 por página
-            }
-            
-            # Si hay un token de siguiente página, usarlo
-            if next_page_token:
-                payload['nextPageToken'] = next_page_token
-            
             try:
-                response = requests.post(url, json=payload, auth=auth, headers=headers)
-                response.raise_for_status()
+                # Calcular cuántos resultados pedir en esta página
+                remaining = max_results - len(all_issues)
+                current_page_size = min(page_size, remaining)
                 
-                data = response.json()
-                issues_data = data.get('issues', [])
+                # Usar la biblioteca jira directamente con paginación startAt
+                issues = self.jira.search_issues(
+                    jql_query,
+                    startAt=start_at,
+                    maxResults=current_page_size,
+                    fields='key,summary,status,assignee,created'  # Solo campos necesarios para velocidad
+                )
                 
-                if not issues_data:
+                if not issues:
                     break
                 
-                # Obtener información de paginación
-                is_last = data.get('isLast', False)
-                next_page_token = data.get('nextPageToken')
                 page_num += 1
-                
-                # Obtener cada issue usando la biblioteca jira
-                for issue_data in issues_data:
-                    # En API v3, la estructura puede ser diferente
-                    # Intentar diferentes formas de acceder a la key
-                    issue_key = None
-                    if isinstance(issue_data, dict):
-                        issue_key = issue_data.get('key') or issue_data.get('id')
-                    elif hasattr(issue_data, 'key'):
-                        issue_key = issue_data.key
-                    elif hasattr(issue_data, 'id'):
-                        issue_key = issue_data.id
-                    
-                    if not issue_key:
-                        # Si no se puede obtener la key, saltar este issue
-                        continue
-                    
-                    try:
-                        issue = self.jira.issue(issue_key)
-                        all_issues.append(issue)
-                    except Exception as e:
-                        # Si falla, crear un objeto simple
-                        class SimpleIssue:
-                            def __init__(self, key):
-                                self.key = key
-                        all_issues.append(SimpleIssue(issue_key))
+                all_issues.extend(issues)
                 
                 # Mostrar progreso
                 print(f"    Progreso: {len(all_issues)} issues obtenidos (página {page_num})...", end='\r')
                 
-                # Si es la última página o alcanzamos el límite, salir
-                if is_last or len(all_issues) >= max_results or not next_page_token:
+                # Si obtuvimos menos de lo pedido, ya no hay más resultados
+                if len(issues) < current_page_size:
                     break
-                    
-            except requests.exceptions.RequestException as e:
-                print(f"Error en búsqueda JQL: {e}")
-                if hasattr(e, 'response') and e.response is not None:
-                    print(f"Response: {e.response.text}")
+                
+                # Preparar siguiente página
+                start_at += len(issues)
+                
+            except Exception as e:
+                print(f"\nError en búsqueda JQL: {e}")
                 break
         
+        print()  # Nueva línea después del progreso
         return all_issues[:max_results]
     
     def get_changelog(self, issue_key: str) -> List[Dict]:
