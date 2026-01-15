@@ -242,6 +242,32 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
             calculados_diferencias += 1
     print(f"[OK] Diferencias calculadas para {calculados_diferencias} issues")
     
+    # Filtrar y eliminar filas con I.Escalamiento negativo
+    print(f"\n[*] Filtrando filas con I.Escalamiento negativo...")
+    issues_originales = len(issues)
+    issues_filtrados = []
+    eliminados = 0
+    
+    for issue_data in issues:
+        escalamiento_str = issue_data.get('I.Escalamiento', '').strip()
+        if escalamiento_str:
+            try:
+                # Intentar convertir a float para verificar si es negativo
+                escalamiento_valor = float(escalamiento_str)
+                if escalamiento_valor < 0:
+                    eliminados += 1
+                    print(f"    [ELIMINADO] {issue_data.get('Clave', 'N/A')}: I.Escalamiento = {escalamiento_valor:.2f} (negativo)")
+                    continue  # Saltar este issue, no agregarlo a issues_filtrados
+            except (ValueError, TypeError):
+                # Si no se puede convertir a float, mantener la fila
+                pass
+        
+        issues_filtrados.append(issue_data)
+    
+    issues = issues_filtrados  # Reemplazar con la lista filtrada
+    print(f"[OK] Filtrado completado: {eliminados} fila(s) eliminada(s) de {issues_originales} totales")
+    print(f"    Issues restantes: {len(issues)}")
+    
     # Escribir el XLSX actualizado
     print(f"\n[*] Guardando resultados en: {archivo_salida}")
     try:
