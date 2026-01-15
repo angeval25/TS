@@ -77,7 +77,7 @@ class JiraIntegration:
         
         Args:
             jql_query: Consulta JQL
-            max_results: Número máximo de resultados
+            max_results: Número máximo de resultados (None para obtener todos)
             
         Returns:
             Lista de objetos Issue de la biblioteca jira
@@ -86,12 +86,30 @@ class JiraIntegration:
         start_at = 0
         page_size = 100  # Jira permite hasta 100 por página
         page_num = 0
+        total_available = None
         
-        while len(all_issues) < max_results:
+        # Si max_results es None, primero obtener el total disponible
+        if max_results is None:
+            try:
+                # Hacer una búsqueda con maxResults=0 para obtener solo el total
+                result = self.jira.search_issues(jql_query, maxResults=0)
+                total_available = result.total
+                max_results = total_available
+                print(f"    Total de issues disponibles: {total_available}")
+            except Exception as e:
+                print(f"    Advertencia: No se pudo obtener el total, continuando con paginación...")
+                # Continuar sin límite, el bucle se detendrá cuando no haya más resultados
+        
+        while True:
             try:
                 # Calcular cuántos resultados pedir en esta página
-                remaining = max_results - len(all_issues)
-                current_page_size = min(page_size, remaining)
+                if max_results is not None:
+                    remaining = max_results - len(all_issues)
+                    if remaining <= 0:
+                        break
+                    current_page_size = min(page_size, remaining)
+                else:
+                    current_page_size = page_size
                 
                 # Usar la biblioteca jira directamente con paginación startAt
                 issues = self.jira.search_issues(
@@ -108,7 +126,10 @@ class JiraIntegration:
                 all_issues.extend(issues)
                 
                 # Mostrar progreso
-                print(f"    Progreso: {len(all_issues)} issues obtenidos (página {page_num})...", end='\r')
+                if total_available:
+                    print(f"    Progreso: {len(all_issues)}/{total_available} issues obtenidos (página {page_num})...", end='\r')
+                else:
+                    print(f"    Progreso: {len(all_issues)} issues obtenidos (página {page_num})...", end='\r')
                 
                 # Si obtuvimos menos de lo pedido, ya no hay más resultados
                 if len(issues) < current_page_size:
@@ -117,12 +138,23 @@ class JiraIntegration:
                 # Preparar siguiente página
                 start_at += len(issues)
                 
+                # Verificar si ya tenemos todos los resultados disponibles
+                if total_available and len(all_issues) >= total_available:
+                    break
+                
             except Exception as e:
                 print(f"\nError en búsqueda JQL: {e}")
+                import traceback
+                traceback.print_exc()
                 break
         
         print()  # Nueva línea después del progreso
-        return all_issues[:max_results]
+        
+        # Si se especificó un max_results, limitar los resultados
+        if max_results is not None:
+            return all_issues[:max_results]
+        else:
+            return all_issues
     
     def get_changelog(self, issue_key: str) -> List[Dict]:
         """

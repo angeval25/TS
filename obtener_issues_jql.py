@@ -6,16 +6,16 @@ from jira_integration import JiraIntegration
 import os
 from openpyxl import load_workbook, Workbook
 
-def obtener_issues_y_actualizar_xlsx(archivo_xlsx='Libro1.xlsx', max_results=1000):
+def obtener_issues_y_actualizar_xlsx(archivo_xlsx='Libro1.xlsx', max_results=None):
     """
     Obtiene issues desde Jira usando JQL y actualiza Libro1.xlsx con las claves
     
     Args:
         archivo_xlsx: Nombre del archivo XLSX a actualizar
-        max_results: Número máximo de resultados a obtener
+        max_results: Número máximo de resultados a obtener (None para todos)
     """
     
-    # Consulta JQL
+    # Consulta JQL - SOLO 30 días hacia atrás desde hoy (sin filtro de status)
     jql_query = 'created >= -30d AND project = TPGSOC AND assignee IN membersOf("RSOC ILATAM L1") ORDER BY created DESC'
     
     print("=" * 80)
@@ -33,11 +33,15 @@ def obtener_issues_y_actualizar_xlsx(archivo_xlsx='Libro1.xlsx', max_results=100
         print(f"[ERROR] Error al conectar con Jira: {e}")
         return
     
-    # Buscar issues - usar un límite alto para obtener todos
+    # Buscar issues - obtener todos los resultados disponibles
     try:
-        print(f"[*] Buscando issues (máximo {max_results})...")
-        # Usar un límite alto para asegurar que obtenemos todos los resultados
-        issues = jira.search_issues(jql_query, max_results=max(max_results, 500))
+        if max_results and max_results > 0:
+            print(f"[*] Buscando issues (máximo {max_results})...")
+            issues = jira.search_issues(jql_query, max_results=max_results)
+        else:
+            print(f"[*] Buscando TODOS los issues disponibles...")
+            # Pasar None para obtener todos los resultados
+            issues = jira.search_issues(jql_query, max_results=None)
         print(f"\n[OK] Se encontraron {len(issues)} issues\n")
     except Exception as e:
         print(f"[ERROR] Error al buscar issues: {e}")
@@ -158,7 +162,11 @@ if __name__ == "__main__":
     archivo = sys.argv[1] if len(sys.argv) > 1 else "Libro1.xlsx"
     
     # Permitir especificar max_results como segundo argumento
-    max_results = int(sys.argv[2]) if len(sys.argv) > 2 else 1000
+    # Si no se especifica o es 0, obtener todos los resultados
+    if len(sys.argv) > 2:
+        max_results = int(sys.argv[2]) if int(sys.argv[2]) > 0 else None
+    else:
+        max_results = None  # Por defecto obtener todos
     
     obtener_issues_y_actualizar_xlsx(archivo, max_results)
     
