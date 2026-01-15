@@ -242,27 +242,55 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
             calculados_diferencias += 1
     print(f"[OK] Diferencias calculadas para {calculados_diferencias} issues")
     
-    # Filtrar y eliminar filas con I.Escalamiento negativo
-    print(f"\n[*] Filtrando filas con I.Escalamiento negativo...")
+    # Filtrar y eliminar filas con I.Escalamiento o I.respuesta Sub negativo
+    # PERO solo si tienen TODAS las fechas (no eliminar issues nuevos sin datos completos)
+    print(f"\n[*] Filtrando filas con I.Escalamiento o I.respuesta Sub negativo...")
     issues_originales = len(issues)
     issues_filtrados = []
     eliminados = 0
     
     for issue_data in issues:
+        # Solo filtrar si tiene TODAS las fechas necesarias
+        tiene_todas_las_fechas = (
+            issue_data.get('with RSOC', '').strip() and
+            issue_data.get('with Local Security', '').strip() and
+            issue_data.get('First response', '').strip()
+        )
+        
+        # Si no tiene todas las fechas, mantenerlo (es un issue nuevo)
+        if not tiene_todas_las_fechas:
+            issues_filtrados.append(issue_data)
+            continue
+        
+        # Verificar I.Escalamiento negativo
         escalamiento_str = issue_data.get('I.Escalamiento', '').strip()
+        eliminado = False
+        
         if escalamiento_str:
             try:
-                # Intentar convertir a float para verificar si es negativo
                 escalamiento_valor = float(escalamiento_str)
                 if escalamiento_valor < 0:
                     eliminados += 1
                     print(f"    [ELIMINADO] {issue_data.get('Clave', 'N/A')}: I.Escalamiento = {escalamiento_valor:.2f} (negativo)")
-                    continue  # Saltar este issue, no agregarlo a issues_filtrados
+                    eliminado = True
             except (ValueError, TypeError):
-                # Si no se puede convertir a float, mantener la fila
                 pass
         
-        issues_filtrados.append(issue_data)
+        # Verificar I.respuesta Sub negativo (solo si tiene Closed)
+        if not eliminado and issue_data.get('Closed', '').strip():
+            respuesta_sub_str = issue_data.get('I.respuesta Sub', '').strip()
+            if respuesta_sub_str:
+                try:
+                    respuesta_sub_valor = float(respuesta_sub_str)
+                    if respuesta_sub_valor < 0:
+                        eliminados += 1
+                        print(f"    [ELIMINADO] {issue_data.get('Clave', 'N/A')}: I.respuesta Sub = {respuesta_sub_valor:.2f} (negativo)")
+                        eliminado = True
+                except (ValueError, TypeError):
+                    pass
+        
+        if not eliminado:
+            issues_filtrados.append(issue_data)
     
     issues = issues_filtrados  # Reemplazar con la lista filtrada
     print(f"[OK] Filtrado completado: {eliminados} fila(s) eliminada(s) de {issues_originales} totales")
