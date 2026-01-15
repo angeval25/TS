@@ -5,6 +5,7 @@ Ejecuta una consulta JQL y llena la columna Clave en Libro1.xlsx
 from jira_integration import JiraIntegration
 import os
 from openpyxl import load_workbook, Workbook
+from datetime import datetime, timedelta
 
 def obtener_issues_y_actualizar_xlsx(archivo_xlsx='Libro1.xlsx', max_results=None):
     """
@@ -15,12 +16,19 @@ def obtener_issues_y_actualizar_xlsx(archivo_xlsx='Libro1.xlsx', max_results=Non
         max_results: Número máximo de resultados a obtener (None para todos)
     """
     
-    # Consulta JQL - SOLO 30 días hacia atrás desde hoy (sin filtro de status)
-    jql_query = 'created >= -30d AND project = TPGSOC AND assignee IN membersOf("RSOC ILATAM L1") ORDER BY created DESC'
+    # Calcular fecha de hace 30 días desde HOY (no desde cuando se ejecutó el workflow)
+    fecha_hace_30_dias = datetime.now() - timedelta(days=30)
+    fecha_formato_jira = fecha_hace_30_dias.strftime('%Y-%m-%d')
+    
+    # Consulta JQL - SOLO 30 días hacia atrás desde HOY usando fecha específica
+    # Esto asegura que siempre use la fecha actual, no la fecha de cuando se ejecutó el workflow
+    jql_query = f'created >= "{fecha_formato_jira}" AND project = TPGSOC AND assignee IN membersOf("RSOC ILATAM L1") ORDER BY created DESC'
     
     print("=" * 80)
     print("Obteniendo issues desde Jira")
     print("=" * 80)
+    print(f"\n[*] Fecha actual: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"[*] Buscando issues desde: {fecha_formato_jira} (hace 30 días)")
     print(f"\n[*] Consulta JQL:")
     print(f"    {jql_query}\n")
     
