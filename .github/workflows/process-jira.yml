@@ -66,7 +66,8 @@ jobs:
     - name: Get issues from Jira
       run: |
         echo "Obteniendo issues desde Jira..."
-        python obtener_issues_jql.py Libro1.xlsx 200
+        echo "Fecha actual del sistema: $(date)"
+        python obtener_issues_jql.py Libro1.xlsx 0
     
     - name: Process XLSX and get dates
       run: |
