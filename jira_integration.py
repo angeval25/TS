@@ -47,9 +47,11 @@ class JiraIntegration:
         self.server = self.server.rstrip('/')
         
         # Initialize Jira connection
+        # Usar API v3 si está disponible, sino usar la versión por defecto
         self.jira = JIRA(
             server=self.server,
-            basic_auth=(self.email, self.api_token)
+            basic_auth=(self.email, self.api_token),
+            options={'rest_api_version': '3'}  # Intentar usar API v3
         )
     
     def create_issue(self, project_key, summary, description, issue_type='Task', **kwargs):
