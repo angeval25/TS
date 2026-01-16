@@ -285,26 +285,33 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
     print("\n" + "=" * 80)
     print(f"[PASO 4] Guardando resultados en: {archivo_salida}")
     print("=" * 80)
+    
+    # Definir todas las columnas que deben estar en el Excel final
+    fieldnames = ['Clave', 'with RSOC', 'with Local Security', 'Closed', 'First response',
+                 'I.First Response', 'I.Escalamiento', 'I.respuesta Sub']
+    
+    # Asegurar que TODOS los issues tengan TODAS las columnas antes de guardar
+    print(f"[*] Verificando que todos los issues tengan todas las columnas...")
+    for issue_data in issues:
+        for col_name in fieldnames:
+            if col_name not in issue_data:
+                issue_data[col_name] = ''
+    print(f"[OK] Todos los issues tienen todas las columnas ({len(fieldnames)} columnas)")
+    
     try:
         wb = Workbook()
         ws = wb.active
-        
-        # Definir columnas
-        fieldnames = ['Clave', 'with RSOC', 'with Local Security', 'Closed', 'First response',
-                     'I.First Response', 'I.Escalamiento', 'I.respuesta Sub']
         
         # Escribir encabezados
         for col_idx, col_name in enumerate(fieldnames, start=1):
             ws.cell(row=1, column=col_idx, value=col_name)
         
-        # Escribir datos - asegurar que todas las columnas se escriban
+        # Escribir datos - TODAS las columnas para TODOS los issues
+        print(f"[*] Escribiendo {len(issues)} issues con {len(fieldnames)} columnas...")
         for row_idx, issue_data in enumerate(issues, start=2):
             for col_idx, col_name in enumerate(fieldnames, start=1):
-                # Obtener el valor, asegurando que existe en el diccionario
-                if col_name in issue_data:
-                    value = issue_data[col_name]
-                else:
-                    value = ''
+                # Obtener el valor del diccionario
+                value = issue_data.get(col_name, '')
                 ws.cell(row=row_idx, column=col_idx, value=value)
         
         wb.save(archivo_salida)
