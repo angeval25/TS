@@ -73,7 +73,7 @@ class JiraIntegration:
     
     def search_issues(self, jql_query, max_results=50):
         """
-        Search for issues using JQL con paginación correcta
+        Search for issues using JQL con paginación correcta usando API v3
         
         Args:
             jql_query: Consulta JQL
@@ -82,48 +82,82 @@ class JiraIntegration:
         Returns:
             Lista de objetos Issue de la biblioteca jira
         """
+        # Usar API v3 directamente porque v2 está deprecada
+        url = f"{self.server}/rest/api/3/search/jql"
+        auth = HTTPBasicAuth(self.email, self.api_token)
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+        
         all_issues = []
-        start_at = 0
-        page_size = 100  # Jira permite hasta 100 por página
+        next_page_token = None
         page_num = 0
         total_available = None
         
-        # Si max_results es None, primero obtener el total disponible
-        if max_results is None:
-            try:
-                # Hacer una búsqueda con maxResults=0 para obtener solo el total
-                result = self.jira.search_issues(jql_query, maxResults=0)
-                total_available = result.total
+        # Primero obtener el total disponible
+        try:
+            payload = {
+                'jql': jql_query,
+                'maxResults': 0
+            }
+            response = requests.post(url, json=payload, auth=auth, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            total_available = data.get('total', 0)
+            if max_results is None:
                 max_results = total_available
-                print(f"    Total de issues disponibles: {total_available}")
-            except Exception as e:
-                print(f"    Advertencia: No se pudo obtener el total, continuando con paginación...")
-                # Continuar sin límite, el bucle se detendrá cuando no haya más resultados
+            print(f"    Total de issues disponibles: {total_available}")
+        except Exception as e:
+            print(f"    Advertencia: No se pudo obtener el total, continuando con paginación...")
         
-        while True:
+        while len(all_issues) < max_results if max_results else True:
             try:
-                # Calcular cuántos resultados pedir en esta página
+                # Calcular cuántos resultados pedir en esta página (máximo 50 por página en API v3)
                 if max_results is not None:
                     remaining = max_results - len(all_issues)
                     if remaining <= 0:
                         break
-                    current_page_size = min(page_size, remaining)
+                    current_page_size = min(50, remaining)  # API v3 limita a 50 por página
                 else:
-                    current_page_size = page_size
+                    current_page_size = 50
                 
-                # Usar la biblioteca jira directamente con paginación startAt
-                issues = self.jira.search_issues(
-                    jql_query,
-                    startAt=start_at,
-                    maxResults=current_page_size,
-                    fields='key,summary,status,assignee,created'  # Solo campos necesarios para velocidad
-                )
+                payload = {
+                    'jql': jql_query,
+                    'maxResults': current_page_size
+                }
                 
-                if not issues:
+                if next_page_token:
+                    payload['nextPageToken'] = next_page_token
+                
+                response = requests.post(url, json=payload, auth=auth, headers=headers)
+                response.raise_for_status()
+                
+                data = response.json()
+                issues_data = data.get('issues', [])
+                
+                if not issues_data:
                     break
                 
+                # Obtener información de paginación
+                is_last = data.get('isLast', False)
+                next_page_token = data.get('nextPageToken')
                 page_num += 1
-                all_issues.extend(issues)
+                
+                # Convertir los issues de API v3 a objetos Issue de la biblioteca jira
+                for issue_data in issues_data:
+                    issue_key = issue_data.get('key') or issue_data.get('id')
+                    if issue_key:
+                        try:
+                            # Obtener el issue completo usando la biblioteca jira
+                            issue = self.jira.issue(issue_key)
+                            all_issues.append(issue)
+                        except Exception:
+                            # Si falla, crear un objeto simple con la key
+                            class SimpleIssue:
+                                def __init__(self, key):
+                                    self.key = key
+                            all_issues.append(SimpleIssue(issue_key))
                 
                 # Mostrar progreso
                 if total_available:
@@ -131,15 +165,8 @@ class JiraIntegration:
                 else:
                     print(f"    Progreso: {len(all_issues)} issues obtenidos (página {page_num})...", end='\r')
                 
-                # Si obtuvimos menos de lo pedido, ya no hay más resultados
-                if len(issues) < current_page_size:
-                    break
-                
-                # Preparar siguiente página
-                start_at += len(issues)
-                
-                # Verificar si ya tenemos todos los resultados disponibles
-                if total_available and len(all_issues) >= total_available:
+                # Si es la última página o no hay más token, salir
+                if is_last or not next_page_token:
                     break
                 
             except Exception as e:
