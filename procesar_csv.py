@@ -169,6 +169,11 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
         print(f"[{i}/{len(issues)}] {issue_key}...", end=' ')
         
         try:
+            # Debug: Verificar changelog antes de buscar fechas (solo para primeros 3 issues)
+            if i <= 3:
+                test_changelog = jira.get_changelog(issue_key)
+                print(f"[DEBUG] {issue_key}: Changelog tiene {len(test_changelog)} cambios", end=' ')
+            
             # Buscar fecha de cambio a "with RSOC" - SIEMPRE buscar desde cero (como primera vez)
             rsoc_result = jira.get_status_change_date(issue_key, "with RSOC")
             if rsoc_result:

@@ -259,9 +259,16 @@ class JiraIntegration:
                 
                 if changelog:
                     return changelog
+        except requests.exceptions.HTTPError as e:
+            # Log del error HTTP para debugging
+            if e.response.status_code == 404:
+                # 404 es esperado si el issue no existe o no hay permisos, continuar con siguiente método
+                pass
+            else:
+                print(f"[DEBUG] Método 1 (API v2) falló para {issue_key}: HTTP {e.response.status_code}")
         except Exception as e:
-            # Si falla, intentar método 2
-            pass
+            # Log de otros errores
+            print(f"[DEBUG] Método 1 (API v2) falló para {issue_key}: {type(e).__name__}")
         
         # Método 2: Biblioteca jira con expand='changelog' (fallback)
         # Nota: La biblioteca jira puede intentar usar v3, por eso es fallback
@@ -290,8 +297,8 @@ class JiraIntegration:
             if changelog:
                 return changelog
         except Exception as e:
-            # Si falla, intentar método 3
-            pass
+            # Log del error para debugging
+            print(f"[DEBUG] Método 2 (biblioteca jira) falló para {issue_key}: {type(e).__name__}: {str(e)[:100]}")
         
         # Método 3: API v3 directa con endpoint /changelog (solo Cloud, último recurso)
         if self.jira_type == 'cloud':
@@ -326,10 +333,13 @@ class JiraIntegration:
                 if changelog:
                     return changelog
             except Exception as e:
-                # Si todos los métodos fallan, retornar lista vacía
-                pass
+                # Log del error para debugging
+                print(f"[DEBUG] Método 3 (API v3) falló para {issue_key}: {type(e).__name__}: {str(e)[:100]}")
         
-        # Si ningún método funcionó, retornar lista vacía (se logueará en el método que llama)
+        # Si ningún método funcionó, loguear advertencia
+        if not changelog:
+            print(f"[DEBUG] Todos los métodos fallaron para {issue_key}, changelog vacío")
+        
         return changelog
     
     def get_status_change_date(self, issue_key: str, target_status: str = "with RSOC") -> Optional[Dict]:
