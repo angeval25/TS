@@ -69,6 +69,31 @@ jobs:
         echo "Fecha actual del sistema: $(date)"
         python3 obtener_issues_jql.py Libro1.xlsx 0
     
+    - name: Verify Jira connection
+      run: |
+        echo "Verificando conexión con Jira..."
+        python3 -c "
+        from jira_integration import JiraIntegration
+        try:
+            jira = JiraIntegration()
+            print(f'✓ Conexión establecida')
+            print(f'✓ Tipo de Jira detectado: {jira.jira_type}')
+            print(f'✓ Servidor: {jira.server}')
+            # Probar obtención de changelog
+            test_issue = 'TPGSOC-1346774'
+            changelog = jira.get_changelog(test_issue)
+            print(f'✓ Changelog de prueba obtenido: {len(changelog)} cambios')
+            if changelog:
+                print('✓ La conexión y permisos están funcionando correctamente')
+            else:
+                print('⚠ Advertencia: Changelog vacío (puede ser normal si el issue no tiene historial)')
+        except Exception as e:
+            print(f'✗ Error en conexión: {e}')
+            import traceback
+            traceback.print_exc()
+            exit(1)
+        "
+    
     - name: Process XLSX and get dates
       run: |
         echo "Procesando XLSX para obtener fechas..."

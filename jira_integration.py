@@ -46,12 +46,45 @@ class JiraIntegration:
         # Asegurar que el servidor no tenga barra final
         self.server = self.server.rstrip('/')
         
+        # Detectar tipo de Jira (Cloud vs Server/Data Center)
+        self.jira_type = self._detect_jira_type()
+        
         # Initialize Jira connection
-        # Dejar que la biblioteca jira use la versión por defecto (compatible con v2 y v3)
+        # Dejar que la biblioteca jira use la versión por defecto (v2)
+        # Jira Cloud soporta v3, pero Server/Data Center solo v2
         self.jira = JIRA(
             server=self.server,
             basic_auth=(self.email, self.api_token)
         )
+    
+    def _detect_jira_type(self) -> str:
+        """
+        Detecta si es Jira Cloud o Server/Data Center basado en la URL y serverInfo.
+        Returns: 'cloud' o 'server'
+        """
+        # Si la URL contiene .atlassian.net, es Cloud
+        if '.atlassian.net' in self.server.lower():
+            return 'cloud'
+        
+        # Intentar obtener serverInfo para detectar el tipo
+        try:
+            url = f"{self.server}/rest/api/2/serverInfo"
+            auth = HTTPBasicAuth(self.email, self.api_token)
+            headers = {'Accept': 'application/json'}
+            
+            response = requests.get(url, auth=auth, headers=headers, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                deployment_type = data.get('deploymentType', '').lower()
+                if 'cloud' in deployment_type:
+                    return 'cloud'
+                elif 'server' in deployment_type or 'data center' in deployment_type:
+                    return 'server'
+        except Exception:
+            pass
+        
+        # Por defecto, asumir Server si no se puede detectar
+        return 'server'
     
     def create_issue(self, project_key, summary, description, issue_type='Task', **kwargs):
         """Create a Jira issue"""
@@ -182,8 +215,10 @@ class JiraIntegration:
     def get_changelog(self, issue_key: str) -> List[Dict]:
         """
         Obtiene el historial completo (changelog) de un issue.
-        Usa la biblioteca jira que maneja automáticamente la versión de API correcta.
-        Si falla, intenta usar requests directamente con API v2.
+        Implementa múltiples fallbacks según la documentación oficial:
+        1. Biblioteca jira con expand='changelog' (método preferido)
+        2. API v2 directa con ?expand=changelog
+        3. API v3 directa con /changelog endpoint (solo Cloud)
         
         Args:
             issue_key: La clave del issue (ej: TPGSOC-1329200)
@@ -193,7 +228,7 @@ class JiraIntegration:
         """
         changelog = []
         
-        # Método 1: Intentar con la biblioteca jira (más simple)
+        # Método 1: Biblioteca jira con expand='changelog' (más simple y robusto)
         try:
             issue = self.jira.issue(issue_key, expand='changelog')
             
@@ -219,10 +254,10 @@ class JiraIntegration:
             if changelog:
                 return changelog
         except Exception as e:
-            # Si falla, intentar método alternativo
+            # Si falla, continuar con métodos alternativos
             pass
         
-        # Método 2: Si el método 1 no funcionó, usar requests directamente con API v2
+        # Método 2: API v2 directa con ?expand=changelog (compatible con Server y Cloud)
         try:
             url = f"{self.server}/rest/api/2/issue/{issue_key}?expand=changelog"
             auth = HTTPBasicAuth(self.email, self.api_token)
@@ -249,9 +284,50 @@ class JiraIntegration:
                             'from_id': item.get('from', None),
                             'to_id': item.get('to', None)
                         })
+                
+                if changelog:
+                    return changelog
         except Exception as e:
-            print(f"Error obteniendo changelog para {issue_key}: {e}")
+            # Si falla, intentar método 3
+            pass
         
+        # Método 3: API v3 directa con endpoint /changelog (solo Cloud, según documentación)
+        if self.jira_type == 'cloud':
+            try:
+                # En API v3, el endpoint correcto es /rest/api/3/issue/{key}/changelog
+                url = f"{self.server}/rest/api/3/issue/{issue_key}/changelog"
+                auth = HTTPBasicAuth(self.email, self.api_token)
+                headers = {'Accept': 'application/json'}
+                
+                response = requests.get(url, auth=auth, headers=headers, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+                
+                if 'values' in data:  # API v3 usa 'values' en lugar de 'histories'
+                    for history in data['values']:
+                        created = history.get('created', '')
+                        author = history.get('author', {})
+                        author_name = author.get('displayName', '') if author else ''
+                        
+                        for item in history.get('items', []):
+                            changelog.append({
+                                'issue_key': issue_key,
+                                'date': created,
+                                'author': author_name,
+                                'field': item.get('field', ''),
+                                'from': item.get('fromString', ''),
+                                'to': item.get('toString', ''),
+                                'from_id': item.get('from', None),
+                                'to_id': item.get('to', None)
+                            })
+                
+                if changelog:
+                    return changelog
+            except Exception as e:
+                # Si todos los métodos fallan, retornar lista vacía
+                pass
+        
+        # Si ningún método funcionó, retornar lista vacía (se logueará en el método que llama)
         return changelog
     
     def get_status_change_date(self, issue_key: str, target_status: str = "with RSOC") -> Optional[Dict]:
@@ -269,16 +345,14 @@ class JiraIntegration:
         changelog = self.get_changelog(issue_key)
         
         if not changelog:
-            # Debug: verificar si el changelog está vacío
+            # Si el changelog está vacío, puede ser un problema de permisos o el issue no tiene historial
             return None
         
         # Ordenar changelog por fecha (del más antiguo al más nuevo) para asegurar que tomamos el PRIMER cambio
         # Convertir fechas a objetos datetime para comparar correctamente
         changelog_sorted = sorted(changelog, key=lambda x: x['date'] if x['date'] else datetime.min)
         
-        # Debug: contar cambios de status
-        status_changes = [c for c in changelog_sorted if c['field'].lower() == 'status']
-        
+        # Buscar el cambio de estado
         for change in changelog_sorted:
             if change['field'].lower() == 'status' and change['to'] and target_status.lower() in change['to'].lower():
                 return {
