@@ -119,8 +119,10 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
         print("[ERROR] No se encontraron issues en el XLSX")
         return
     
-    # Procesar cada issue
-    print("[*] Procesando issues...")
+    # PASO 1: Agregar fechas desde Jira (with RSOC, with Local Security, Closed, First response)
+    print("\n" + "=" * 80)
+    print("[PASO 1] Agregando fechas desde Jira...")
+    print("=" * 80)
     print("-" * 80)
     
     encontrados_rsoc = 0
@@ -215,7 +217,7 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
             print(f"    Errores: {errores}\n")
     
     print("-" * 80)
-    print(f"\n[OK] Procesamiento completado")
+    print(f"\n[OK] Paso 1 completado - Fechas agregadas")
     print(f"    Total issues: {len(issues)}")
     print(f"    RSOC encontrados: {encontrados_rsoc}")
     print(f"    Local Security encontrados: {encontrados_local}")
@@ -223,17 +225,21 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
     print(f"    First response encontrados: {encontrados_first_response}")
     print(f"    Errores: {errores}")
     
-    # Calcular diferencias en horas
-    print(f"\n[*] Calculando diferencias en horas...")
+    # PASO 2: Calcular diferencias en horas (I.First Response, I.Escalamiento, I.respuesta Sub)
+    print("\n" + "=" * 80)
+    print("[PASO 2] Calculando diferencias en horas...")
+    print("=" * 80)
     calculados_diferencias = 0
     for issue_data in issues:
         calcular_diferencias_horas(issue_data)
         if issue_data.get('I.First Response') or issue_data.get('I.Escalamiento') or issue_data.get('I.respuesta Sub'):
             calculados_diferencias += 1
-    print(f"[OK] Diferencias calculadas para {calculados_diferencias} issues")
+    print(f"[OK] Paso 2 completado - Diferencias calculadas para {calculados_diferencias} issues")
     
-    # Filtrar y eliminar filas cuando Escalamiento (with Local Security) < First response
-    print(f"\n[*] Filtrando filas donde Escalamiento < First response...")
+    # PASO 3: Filtrar y eliminar filas cuando Escalamiento (with Local Security) < First response
+    print("\n" + "=" * 80)
+    print("[PASO 3] Filtrando filas donde Escalamiento < First response...")
+    print("=" * 80)
     issues_originales = len(issues)
     issues_filtrados = []
     eliminados = 0
@@ -262,11 +268,13 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
         issues_filtrados.append(issue_data)
     
     issues = issues_filtrados  # Reemplazar con la lista filtrada
-    print(f"[OK] Filtrado completado: {eliminados} fila(s) eliminada(s) de {issues_originales} totales")
+    print(f"[OK] Paso 3 completado - Filtrado: {eliminados} fila(s) eliminada(s) de {issues_originales} totales")
     print(f"    Issues restantes: {len(issues)}")
     
-    # Escribir el XLSX actualizado
-    print(f"\n[*] Guardando resultados en: {archivo_salida}")
+    # PASO 4: Escribir el XLSX actualizado con todas las columnas
+    print("\n" + "=" * 80)
+    print(f"[PASO 4] Guardando resultados en: {archivo_salida}")
+    print("=" * 80)
     try:
         wb = Workbook()
         ws = wb.active

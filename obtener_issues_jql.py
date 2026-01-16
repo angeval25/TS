@@ -68,9 +68,9 @@ def obtener_issues_y_actualizar_xlsx(archivo_xlsx='Libro1.xlsx', max_results=Non
     if len(claves) > 10:
         print(f"    ... y {len(claves) - 10} más")
     
-    # ELIMINAR el archivo Excel existente para empezar desde cero (sin superposición)
+    # PASO 1: Borrar el Excel existente para evitar superposición
     if os.path.exists(archivo_xlsx):
-        print(f"\n[*] Eliminando archivo existente: {archivo_xlsx}")
+        print(f"\n[*] Eliminando archivo Excel existente: {archivo_xlsx}")
         try:
             os.remove(archivo_xlsx)
             print(f"[OK] Archivo eliminado - se creará uno nuevo desde cero")
@@ -78,42 +78,32 @@ def obtener_issues_y_actualizar_xlsx(archivo_xlsx='Libro1.xlsx', max_results=Non
             print(f"[!] Error al eliminar archivo existente: {e}")
             print(f"    Se sobrescribirá al guardar")
     
-    # Definir columnas estándar (siempre las mismas)
-    columnas_existentes = ['Clave', 'with RSOC', 'with Local Security', 'Closed', 'First response',
-                          'I.First Response', 'I.Escalamiento', 'I.respuesta Sub']
-    
-    # Crear estructura de datos con las nuevas claves - TODO desde cero
+    # PASO 2: Crear estructura de datos solo con las claves (sin otras columnas)
     nuevos_issues = []
     for clave in claves:
-        # Crear nuevo registro vacío siempre (como primera vez)
+        # Crear registro solo con la clave
         nuevo_issue = {'Clave': clave}
-        # Agregar todas las columnas estándar vacías
-        for col in columnas_existentes:
-            if col != 'Clave':
-                nuevo_issue[col] = ''
         nuevos_issues.append(nuevo_issue)
     
-    # Guardar XLSX actualizado
+    # PASO 3: Guardar XLSX solo con la columna "Clave"
     print(f"\n[*] Guardando {len(nuevos_issues)} issues en: {archivo_xlsx}")
+    print(f"    Solo columna 'Clave' - las fechas se agregarán en el siguiente paso")
     try:
         wb = Workbook()
         ws = wb.active
         
-        # Escribir encabezados
-        for col_idx, col_name in enumerate(columnas_existentes, start=1):
-            ws.cell(row=1, column=col_idx, value=col_name)
+        # Escribir solo el encabezado "Clave"
+        ws.cell(row=1, column=1, value='Clave')
         
-        # Escribir datos
+        # Escribir solo las claves
         for row_idx, issue in enumerate(nuevos_issues, start=2):
-            for col_idx, col_name in enumerate(columnas_existentes, start=1):
-                value = issue.get(col_name, '')
-                ws.cell(row=row_idx, column=col_idx, value=value)
+            ws.cell(row=row_idx, column=1, value=issue.get('Clave', ''))
         
         wb.save(archivo_xlsx)
-        print(f"[OK] Archivo guardado exitosamente")
+        print(f"[OK] Archivo guardado exitosamente (solo claves)")
         print(f"\n[*] Resumen:")
         print(f"    Total issues en XLSX: {len(nuevos_issues)}")
-        print(f"    Archivo creado desde cero (sin datos previos)")
+        print(f"    Archivo creado desde cero (solo columna 'Clave')")
         
     except Exception as e:
         print(f"[ERROR] Error al guardar el XLSX: {e}")
