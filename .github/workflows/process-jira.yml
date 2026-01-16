@@ -72,7 +72,9 @@ jobs:
     - name: Process XLSX and get dates
       run: |
         echo "Procesando XLSX para obtener fechas..."
-        python procesar_csv.py
+        python procesar_csv.py || exit 1
+        echo "Verificando que el archivo se actualizó..."
+        python3 -c "from openpyxl import load_workbook; wb = load_workbook('Libro1.xlsx', data_only=True); ws = wb.active; print(f'Total issues en Excel: {ws.max_row - 1}')"
     
     - name: Commit and push changes
       run: |
