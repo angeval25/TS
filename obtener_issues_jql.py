@@ -68,65 +68,30 @@ def obtener_issues_y_actualizar_xlsx(archivo_xlsx='Libro1.xlsx', max_results=Non
     if len(claves) > 10:
         print(f"    ... y {len(claves) - 10} más")
     
-    # Leer XLSX existente si existe para preservar otras columnas
-    issues_existentes = {}
-    columnas_existentes = ['Clave']
-    
+    # ELIMINAR el archivo Excel existente para empezar desde cero (sin superposición)
     if os.path.exists(archivo_xlsx):
-        print(f"\n[*] Leyendo archivo existente: {archivo_xlsx}")
+        print(f"\n[*] Eliminando archivo existente: {archivo_xlsx}")
         try:
-            wb = load_workbook(archivo_xlsx, data_only=True)
-            ws = wb.active
-            
-            # Leer encabezados
-            headers = []
-            for cell in ws[1]:
-                if cell.value:
-                    headers.append(cell.value)
-                else:
-                    headers.append('')
-            
-            columnas_existentes = headers.copy()
-            
-            # Leer datos existentes
-            for row in ws.iter_rows(min_row=2, values_only=False):
-                issue_dict = {}
-                for idx, cell in enumerate(row):
-                    if idx < len(headers):
-                        col_name = headers[idx]
-                        if col_name:
-                            value = cell.value
-                            issue_dict[col_name] = str(value) if value is not None else ''
-                
-                clave = issue_dict.get('Clave', '').strip()
-                if clave:
-                    issues_existentes[clave] = issue_dict
-            
-            print(f"[OK] Se leyeron {len(issues_existentes)} issues existentes")
+            os.remove(archivo_xlsx)
+            print(f"[OK] Archivo eliminado - se creará uno nuevo desde cero")
         except Exception as e:
-            print(f"[!] Error al leer archivo existente: {e}")
-            print(f"    Se creará un archivo nuevo")
+            print(f"[!] Error al eliminar archivo existente: {e}")
+            print(f"    Se sobrescribirá al guardar")
     
-    # Crear estructura de datos con las nuevas claves
-    # SIEMPRE crear registros nuevos (como si fuera la primera vez) - NO preservar datos existentes
+    # Definir columnas estándar (siempre las mismas)
+    columnas_existentes = ['Clave', 'with RSOC', 'with Local Security', 'Closed', 'First response',
+                          'I.First Response', 'I.Escalamiento', 'I.respuesta Sub']
+    
+    # Crear estructura de datos con las nuevas claves - TODO desde cero
     nuevos_issues = []
     for clave in claves:
         # Crear nuevo registro vacío siempre (como primera vez)
         nuevo_issue = {'Clave': clave}
-        # Agregar otras columnas vacías si existen
+        # Agregar todas las columnas estándar vacías
         for col in columnas_existentes:
-            if col != 'Clave' and col not in nuevo_issue:
+            if col != 'Clave':
                 nuevo_issue[col] = ''
         nuevos_issues.append(nuevo_issue)
-    
-    # Si no hay columnas definidas, usar las estándar
-    if len(columnas_existentes) == 1:  # Solo 'Clave'
-        columnas_existentes = ['Clave', 'with RSOC', 'with Local Security', 'Closed', 'First response']
-        # Agregar columnas faltantes a los issues existentes
-        for issue in nuevos_issues:
-            for col in columnas_existentes:
-                if col not in issue:
-                    issue[col] = ''
     
     # Guardar XLSX actualizado
     print(f"\n[*] Guardando {len(nuevos_issues)} issues en: {archivo_xlsx}")
@@ -148,7 +113,7 @@ def obtener_issues_y_actualizar_xlsx(archivo_xlsx='Libro1.xlsx', max_results=Non
         print(f"[OK] Archivo guardado exitosamente")
         print(f"\n[*] Resumen:")
         print(f"    Total issues en XLSX: {len(nuevos_issues)}")
-        print(f"    Issues actualizados desde Jira (todos como primera vez)")
+        print(f"    Archivo creado desde cero (sin datos previos)")
         
     except Exception as e:
         print(f"[ERROR] Error al guardar el XLSX: {e}")
