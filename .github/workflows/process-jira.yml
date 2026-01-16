@@ -3,9 +3,9 @@ name: Process Jira XLSX
 on:
   schedule:
     # Ejecutar cada 8 horas: 8 AM, 4 PM (16:00), y 12 AM (00:00) UTC
-    - cron: '0 8 * * *'   # 8:00 AM UTC
-    - cron: '0 16 * * *'  # 4:00 PM UTC (16:00)
-    - cron: '0 0 * * *'   # 12:00 AM UTC (medianoche)
+    - cron: '0 13 * * *'   # 8:00 AM hora Colombia (1:00 PM UTC)
+    - cron: '0 21 * * *'   # 4:00 PM hora Colombia (9:00 PM UTC)
+    - cron: '0 5 * * *'    # 12:00 AM hora Colombia (5:00 AM UTC)
   workflow_dispatch:  # Permite ejecución manual
 
 jobs:
