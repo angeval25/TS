@@ -183,6 +183,7 @@ class JiraIntegration:
         """
         Obtiene el historial completo (changelog) de un issue.
         Usa la biblioteca jira que maneja automáticamente la versión de API correcta.
+        Si falla, intenta usar requests directamente con API v2.
         
         Args:
             issue_key: La clave del issue (ej: TPGSOC-1329200)
@@ -190,11 +191,11 @@ class JiraIntegration:
         Returns:
             Lista de diccionarios con los cambios realizados
         """
+        changelog = []
+        
+        # Método 1: Intentar con la biblioteca jira (más simple)
         try:
-            # Usar la biblioteca jira que maneja automáticamente la versión de API
-            # Esto debería funcionar tanto con API v2 como v3
             issue = self.jira.issue(issue_key, expand='changelog')
-            changelog = []
             
             # Verificar que el changelog existe
             if hasattr(issue, 'changelog') and issue.changelog:
@@ -215,10 +216,43 @@ class JiraIntegration:
                             'to_id': getattr(item, 'to', None)
                         })
             
-            return changelog
+            if changelog:
+                return changelog
+        except Exception as e:
+            # Si falla, intentar método alternativo
+            pass
+        
+        # Método 2: Si el método 1 no funcionó, usar requests directamente con API v2
+        try:
+            url = f"{self.server}/rest/api/2/issue/{issue_key}?expand=changelog"
+            auth = HTTPBasicAuth(self.email, self.api_token)
+            headers = {'Accept': 'application/json'}
+            
+            response = requests.get(url, auth=auth, headers=headers, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            
+            if 'changelog' in data and 'histories' in data['changelog']:
+                for history in data['changelog']['histories']:
+                    created = history.get('created', '')
+                    author = history.get('author', {})
+                    author_name = author.get('displayName', '') if author else ''
+                    
+                    for item in history.get('items', []):
+                        changelog.append({
+                            'issue_key': issue_key,
+                            'date': created,
+                            'author': author_name,
+                            'field': item.get('field', ''),
+                            'from': item.get('fromString', ''),
+                            'to': item.get('toString', ''),
+                            'from_id': item.get('from', None),
+                            'to_id': item.get('to', None)
+                        })
         except Exception as e:
             print(f"Error obteniendo changelog para {issue_key}: {e}")
-            return []
+        
+        return changelog
     
     def get_status_change_date(self, issue_key: str, target_status: str = "with RSOC") -> Optional[Dict]:
         """
