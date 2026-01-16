@@ -336,10 +336,30 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
     
     # Asegurar que TODOS los issues tengan TODAS las columnas antes de guardar
     print(f"[*] Verificando que todos los issues tengan todas las columnas...")
+    
+    # Verificar que las fechas se mantengan antes de asegurar columnas
+    if issues:
+        primer_issue = issues[0]
+        print(f"[DEBUG] Antes de asegurar columnas - Primer issue:")
+        print(f"         with RSOC: '{primer_issue.get('with RSOC', '')}'")
+        print(f"         with Local Security: '{primer_issue.get('with Local Security', '')}'")
+        print(f"         First response: '{primer_issue.get('First response', '')}'")
+    
     for issue_data in issues:
+        # IMPORTANTE: Solo agregar columnas que NO existen, NO sobrescribir las que ya tienen valores
         for col_name in fieldnames:
             if col_name not in issue_data:
                 issue_data[col_name] = ''
+            # NO hacer: issue_data[col_name] = '' si ya tiene un valor
+    
+    # Verificar que las fechas se mantengan después de asegurar columnas
+    if issues:
+        primer_issue = issues[0]
+        print(f"[DEBUG] Después de asegurar columnas - Primer issue:")
+        print(f"         with RSOC: '{primer_issue.get('with RSOC', '')}'")
+        print(f"         with Local Security: '{primer_issue.get('with Local Security', '')}'")
+        print(f"         First response: '{primer_issue.get('First response', '')}'")
+    
     print(f"[OK] Todos los issues tienen todas las columnas ({len(fieldnames)} columnas)")
     
     try:
