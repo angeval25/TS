@@ -96,9 +96,14 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
         for cell in ws[1]:
             headers.append(cell.value if cell.value else '')
         
+        # Definir todas las columnas que necesitamos (asegurar que existan)
+        todas_las_columnas = ['Clave', 'with RSOC', 'with Local Security', 'Closed', 'First response',
+                             'I.First Response', 'I.Escalamiento', 'I.respuesta Sub']
+        
         # Leer datos
         for row in ws.iter_rows(min_row=2, values_only=False):
             issue_dict = {}
+            # Primero leer las columnas que existen en el Excel
             for idx, cell in enumerate(row):
                 if idx < len(headers):
                     col_name = headers[idx]
@@ -106,6 +111,11 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
                         value = cell.value
                         # Convertir a string si no es None
                         issue_dict[col_name] = str(value) if value is not None else ''
+            
+            # Asegurar que todas las columnas necesarias existan en el diccionario
+            for col_name in todas_las_columnas:
+                if col_name not in issue_dict:
+                    issue_dict[col_name] = ''
             
             if issue_dict.get('Clave', '').strip():
                 issues.append(issue_dict)
@@ -287,10 +297,14 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
         for col_idx, col_name in enumerate(fieldnames, start=1):
             ws.cell(row=1, column=col_idx, value=col_name)
         
-        # Escribir datos
+        # Escribir datos - asegurar que todas las columnas se escriban
         for row_idx, issue_data in enumerate(issues, start=2):
             for col_idx, col_name in enumerate(fieldnames, start=1):
-                value = issue_data.get(col_name, '')
+                # Obtener el valor, asegurando que existe en el diccionario
+                if col_name in issue_data:
+                    value = issue_data[col_name]
+                else:
+                    value = ''
                 ws.cell(row=row_idx, column=col_idx, value=value)
         
         wb.save(archivo_salida)
