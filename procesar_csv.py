@@ -302,9 +302,11 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
         wb = Workbook()
         ws = wb.active
         
-        # Escribir encabezados
+        # Escribir encabezados - VERIFICAR que se escriban todos
+        print(f"[DEBUG] Escribiendo {len(fieldnames)} encabezados...")
         for col_idx, col_name in enumerate(fieldnames, start=1):
             ws.cell(row=1, column=col_idx, value=col_name)
+            print(f"[DEBUG] Encabezado {col_idx}: {col_name}")
         
         # Escribir datos - TODAS las columnas para TODOS los issues
         print(f"[*] Escribiendo {len(issues)} issues con {len(fieldnames)} columnas...")
