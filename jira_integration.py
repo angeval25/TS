@@ -180,7 +180,7 @@ class JiraIntegration:
     
     def get_changelog(self, issue_key: str) -> List[Dict]:
         """
-        Obtiene el historial completo (changelog) de un issue.
+        Obtiene el historial completo (changelog) de un issue usando API v3.
         
         Args:
             issue_key: La clave del issue (ej: TPGSOC-1329200)
@@ -189,21 +189,39 @@ class JiraIntegration:
             Lista de diccionarios con los cambios realizados
         """
         try:
-            issue = self.jira.issue(issue_key, expand='changelog')
+            # Usar API v3 directamente con requests
+            url = f"{self.server}/rest/api/3/issue/{issue_key}?expand=changelog"
+            
+            auth = HTTPBasicAuth(self.email, self.api_token)
+            headers = {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.get(url, auth=auth, headers=headers)
+            response.raise_for_status()
+            
+            data = response.json()
             changelog = []
             
-            for history in issue.changelog.histories:
-                for item in history.items:
-                    changelog.append({
-                        'issue_key': issue_key,
-                        'date': history.created,
-                        'author': history.author.displayName,
-                        'field': item.field,
-                        'from': item.fromString,
-                        'to': item.toString,
-                        'from_id': getattr(item, 'from', None),
-                        'to_id': getattr(item, 'to', None)
-                    })
+            # En API v3, el changelog está en data['changelog']['histories']
+            if 'changelog' in data and 'histories' in data['changelog']:
+                for history in data['changelog']['histories']:
+                    created = history.get('created', '')
+                    author = history.get('author', {})
+                    author_name = author.get('displayName', '') if author else ''
+                    
+                    for item in history.get('items', []):
+                        changelog.append({
+                            'issue_key': issue_key,
+                            'date': created,
+                            'author': author_name,
+                            'field': item.get('field', ''),
+                            'from': item.get('fromString', ''),
+                            'to': item.get('toString', ''),
+                            'from_id': item.get('from', None),
+                            'to_id': item.get('to', None)
+                        })
             
             return changelog
         except Exception as e:
