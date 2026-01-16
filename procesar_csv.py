@@ -169,9 +169,10 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
             # Buscar fecha de cambio a "with RSOC" - SIEMPRE buscar desde cero (como primera vez)
             rsoc_result = jira.get_status_change_date(issue_key, "with RSOC")
             if rsoc_result:
-                issue_data['with RSOC'] = rsoc_result['date']
+                fecha_rsoc = rsoc_result['date']
+                issue_data['with RSOC'] = fecha_rsoc
                 encontrados_rsoc += 1
-                print("RSOC: OK", end=' ')
+                print(f"RSOC: OK ({fecha_rsoc})", end=' ')
             else:
                 # Si no se encuentra, limpiar el valor (como primera vez)
                 issue_data['with RSOC'] = ''
@@ -180,9 +181,10 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
             # Buscar fecha de cambio a "with Local Security" - SIEMPRE buscar desde cero (como primera vez)
             local_result = jira.get_status_change_date(issue_key, "with Local Security")
             if local_result:
-                issue_data['with Local Security'] = local_result['date']
+                fecha_local = local_result['date']
+                issue_data['with Local Security'] = fecha_local
                 encontrados_local += 1
-                print("Local: OK", end=' ')
+                print(f"Local: OK ({fecha_local})", end=' ')
             else:
                 # Si no se encuentra, limpiar el valor (como primera vez)
                 issue_data['with Local Security'] = ''
@@ -191,9 +193,10 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
             # Buscar fecha de cambio a "Closed" - SIEMPRE buscar desde cero (como primera vez)
             closed_result = jira.get_status_change_date(issue_key, "Closed")
             if closed_result:
-                issue_data['Closed'] = closed_result['date']
+                fecha_closed = closed_result['date']
+                issue_data['Closed'] = fecha_closed
                 encontrados_closed += 1
-                print("Closed: OK", end=' ')
+                print(f"Closed: OK ({fecha_closed})", end=' ')
             else:
                 # Si no se encuentra, limpiar el valor (como primera vez)
                 issue_data['Closed'] = ''
@@ -202,9 +205,10 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
             # Buscar fecha de asignación a personas específicas (First response) - SIEMPRE buscar desde cero (como primera vez)
             first_response_result = jira.get_assignee_change_date(issue_key, target_assignees)
             if first_response_result:
-                issue_data['First response'] = first_response_result['date']
+                fecha_first = first_response_result['date']
+                issue_data['First response'] = fecha_first
                 encontrados_first_response += 1
-                print("First response: OK", end=' ')
+                print(f"First response: OK ({fecha_first})", end=' ')
             else:
                 # Si no se encuentra, limpiar el valor (como primera vez)
                 issue_data['First response'] = ''
@@ -321,6 +325,9 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
             for col_idx, col_name in enumerate(fieldnames, start=1):
                 # Obtener el valor del diccionario
                 value = issue_data.get(col_name, '')
+                # Debug para las primeras filas
+                if row_idx <= 4 and col_name in ['with RSOC', 'with Local Security', 'First response']:
+                    print(f"[DEBUG] Escribiendo {col_name} = '{value}' en fila {row_idx}, columna {col_idx}")
                 ws.cell(row=row_idx, column=col_idx, value=value)
         
         wb.save(archivo_salida)
