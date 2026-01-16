@@ -182,7 +182,8 @@ class JiraIntegration:
     
     def get_changelog(self, issue_key: str) -> List[Dict]:
         """
-        Obtiene el historial completo (changelog) de un issue usando API v3.
+        Obtiene el historial completo (changelog) de un issue.
+        Usa la biblioteca jira que maneja automáticamente la versión de API correcta.
         
         Args:
             issue_key: La clave del issue (ej: TPGSOC-1329200)
@@ -191,38 +192,28 @@ class JiraIntegration:
             Lista de diccionarios con los cambios realizados
         """
         try:
-            # Usar API v3 directamente con requests
-            url = f"{self.server}/rest/api/3/issue/{issue_key}?expand=changelog"
-            
-            auth = HTTPBasicAuth(self.email, self.api_token)
-            headers = {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-            
-            response = requests.get(url, auth=auth, headers=headers)
-            response.raise_for_status()
-            
-            data = response.json()
+            # Usar la biblioteca jira que maneja automáticamente la versión de API
+            # Esto debería funcionar tanto con API v2 como v3
+            issue = self.jira.issue(issue_key, expand='changelog')
             changelog = []
             
-            # En API v3, el changelog está en data['changelog']['histories']
-            if 'changelog' in data and 'histories' in data['changelog']:
-                for history in data['changelog']['histories']:
-                    created = history.get('created', '')
-                    author = history.get('author', {})
-                    author_name = author.get('displayName', '') if author else ''
+            # Verificar que el changelog existe
+            if hasattr(issue, 'changelog') and issue.changelog:
+                for history in issue.changelog.histories:
+                    created = history.created
+                    author = history.author
+                    author_name = author.displayName if hasattr(author, 'displayName') else str(author)
                     
-                    for item in history.get('items', []):
+                    for item in history.items:
                         changelog.append({
                             'issue_key': issue_key,
                             'date': created,
                             'author': author_name,
-                            'field': item.get('field', ''),
-                            'from': item.get('fromString', ''),
-                            'to': item.get('toString', ''),
-                            'from_id': item.get('from', None),
-                            'to_id': item.get('to', None)
+                            'field': item.field,
+                            'from': item.fromString if hasattr(item, 'fromString') else '',
+                            'to': item.toString if hasattr(item, 'toString') else '',
+                            'from_id': getattr(item, 'from', None),
+                            'to_id': getattr(item, 'to', None)
                         })
             
             return changelog
