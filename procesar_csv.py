@@ -27,12 +27,15 @@ def parse_jira_date(date_str):
 def calcular_diferencias_horas(issue_data):
     """
     Calcula las diferencias en horas para las columnas I.First Response, I.Escalamiento, I.respuesta Sub
+    IMPORTANTE: NO modifica las columnas de fechas originales, solo calcula las diferencias
     """
+    # Obtener los valores de las fechas (NO modificarlos, solo leerlos)
     rsoc_str = issue_data.get('with RSOC', '')
     local_str = issue_data.get('with Local Security', '')
     closed_str = issue_data.get('Closed', '')
     first_response_str = issue_data.get('First response', '')
     
+    # Convertir a datetime para calcular diferencias (NO modificar los valores originales)
     rsoc_date = parse_jira_date(rsoc_str) if rsoc_str else None
     local_date = parse_jira_date(local_str) if local_str else None
     closed_date = parse_jira_date(closed_str) if closed_str else None
@@ -243,11 +246,48 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
     print("\n" + "=" * 80)
     print("[PASO 2] Calculando diferencias en horas...")
     print("=" * 80)
+    
+    # Verificar que las fechas se mantengan antes de calcular diferencias
+    if issues:
+        primer_issue = issues[0]
+        print(f"[DEBUG] Antes de calcular diferencias - Primer issue:")
+        print(f"         with RSOC: '{primer_issue.get('with RSOC', '')}'")
+        print(f"         with Local Security: '{primer_issue.get('with Local Security', '')}'")
+        print(f"         First response: '{primer_issue.get('First response', '')}'")
+    
     calculados_diferencias = 0
     for issue_data in issues:
+        # Guardar las fechas antes de calcular diferencias (por si acaso)
+        fechas_antes = {
+            'with RSOC': issue_data.get('with RSOC', ''),
+            'with Local Security': issue_data.get('with Local Security', ''),
+            'Closed': issue_data.get('Closed', ''),
+            'First response': issue_data.get('First response', '')
+        }
+        
         calcular_diferencias_horas(issue_data)
+        
+        # Verificar que las fechas no se hayan borrado
+        if issue_data.get('with RSOC', '') != fechas_antes['with RSOC']:
+            print(f"[ERROR] with RSOC se borró para {issue_data.get('Clave', 'N/A')}!")
+        if issue_data.get('with Local Security', '') != fechas_antes['with Local Security']:
+            print(f"[ERROR] with Local Security se borró para {issue_data.get('Clave', 'N/A')}!")
+        if issue_data.get('Closed', '') != fechas_antes['Closed']:
+            print(f"[ERROR] Closed se borró para {issue_data.get('Clave', 'N/A')}!")
+        if issue_data.get('First response', '') != fechas_antes['First response']:
+            print(f"[ERROR] First response se borró para {issue_data.get('Clave', 'N/A')}!")
+        
         if issue_data.get('I.First Response') or issue_data.get('I.Escalamiento') or issue_data.get('I.respuesta Sub'):
             calculados_diferencias += 1
+    
+    # Verificar que las fechas se mantengan después de calcular diferencias
+    if issues:
+        primer_issue = issues[0]
+        print(f"[DEBUG] Después de calcular diferencias - Primer issue:")
+        print(f"         with RSOC: '{primer_issue.get('with RSOC', '')}'")
+        print(f"         with Local Security: '{primer_issue.get('with Local Security', '')}'")
+        print(f"         First response: '{primer_issue.get('First response', '')}'")
+    
     print(f"[OK] Paso 2 completado - Diferencias calculadas para {calculados_diferencias} issues")
     
     # PASO 3: Filtrar y eliminar filas cuando Escalamiento (with Local Security) < First response
