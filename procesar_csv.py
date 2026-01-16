@@ -308,7 +308,14 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
         
         # Escribir datos - TODAS las columnas para TODOS los issues
         print(f"[*] Escribiendo {len(issues)} issues con {len(fieldnames)} columnas...")
+        print(f"[DEBUG] Columnas a escribir: {fieldnames}")
+        
         for row_idx, issue_data in enumerate(issues, start=2):
+            # Debug: mostrar las primeras 3 issues
+            if row_idx <= 4:
+                print(f"[DEBUG] Issue {row_idx-1}: Clave={issue_data.get('Clave', 'N/A')}, tiene {len(issue_data)} columnas")
+                print(f"         Columnas: {list(issue_data.keys())}")
+            
             for col_idx, col_name in enumerate(fieldnames, start=1):
                 # Obtener el valor del diccionario
                 value = issue_data.get(col_name, '')
@@ -316,6 +323,16 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
         
         wb.save(archivo_salida)
         print(f"[OK] Archivo guardado exitosamente: {archivo_salida}")
+        print(f"[DEBUG] Verificando archivo guardado...")
+        # Verificar que el archivo se guardó correctamente
+        try:
+            wb_check = load_workbook(archivo_salida, data_only=True)
+            ws_check = wb_check.active
+            headers_check = [cell.value for cell in ws_check[1]]
+            print(f"[DEBUG] Columnas en archivo guardado: {headers_check}")
+            print(f"[DEBUG] Total columnas: {len(headers_check)}")
+        except Exception as e:
+            print(f"[DEBUG] Error al verificar archivo: {e}")
         
         # Estadísticas finales
         con_rsoc = sum(1 for i in issues if i.get('with RSOC', '').strip())
