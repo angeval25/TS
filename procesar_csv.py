@@ -153,60 +153,55 @@ def procesar_csv(archivo_entrada='Libro1.xlsx', archivo_salida=None):
             
         print(f"[{i}/{len(issues)}] {issue_key}...", end=' ')
         
-        # Si ya tiene todas las fechas, saltar
-        if (issue_data.get('with RSOC', '').strip() and issue_data.get('with Local Security', '').strip() and 
-            issue_data.get('Closed', '').strip() and issue_data.get('First response', '').strip()):
-            print("(ya tiene datos)")
-            continue
-        
         try:
-            # Buscar fecha de cambio a "with RSOC"
-            if not issue_data.get('with RSOC', '').strip():
-                rsoc_result = jira.get_status_change_date(issue_key, "with RSOC")
-                if rsoc_result:
-                    issue_data['with RSOC'] = rsoc_result['date']
-                    encontrados_rsoc += 1
-                    print("RSOC: OK", end=' ')
-                else:
+            # Buscar fecha de cambio a "with RSOC" - SIEMPRE buscar para actualizar
+            rsoc_result = jira.get_status_change_date(issue_key, "with RSOC")
+            if rsoc_result:
+                issue_data['with RSOC'] = rsoc_result['date']
+                encontrados_rsoc += 1
+                print("RSOC: OK", end=' ')
+            else:
+                # Si no se encuentra, mantener el valor existente si existe
+                if not issue_data.get('with RSOC', '').strip():
                     print("RSOC: no encontrado", end=' ')
-            else:
-                print("RSOC: ya existe", end=' ')
-            
-            # Buscar fecha de cambio a "with Local Security"
-            if not issue_data.get('with Local Security', '').strip():
-                local_result = jira.get_status_change_date(issue_key, "with Local Security")
-                if local_result:
-                    issue_data['with Local Security'] = local_result['date']
-                    encontrados_local += 1
-                    print("Local: OK", end=' ')
                 else:
+                    print("RSOC: mantenido", end=' ')
+            
+            # Buscar fecha de cambio a "with Local Security" - SIEMPRE buscar para actualizar
+            local_result = jira.get_status_change_date(issue_key, "with Local Security")
+            if local_result:
+                issue_data['with Local Security'] = local_result['date']
+                encontrados_local += 1
+                print("Local: OK", end=' ')
+            else:
+                if not issue_data.get('with Local Security', '').strip():
                     print("Local: no encontrado", end=' ')
-            else:
-                print("Local: ya existe", end=' ')
-            
-            # Buscar fecha de cambio a "Closed"
-            if not issue_data.get('Closed', '').strip():
-                closed_result = jira.get_status_change_date(issue_key, "Closed")
-                if closed_result:
-                    issue_data['Closed'] = closed_result['date']
-                    encontrados_closed += 1
-                    print("Closed: OK", end=' ')
                 else:
+                    print("Local: mantenido", end=' ')
+            
+            # Buscar fecha de cambio a "Closed" - SIEMPRE buscar para actualizar
+            closed_result = jira.get_status_change_date(issue_key, "Closed")
+            if closed_result:
+                issue_data['Closed'] = closed_result['date']
+                encontrados_closed += 1
+                print("Closed: OK", end=' ')
+            else:
+                if not issue_data.get('Closed', '').strip():
                     print("Closed: no encontrado", end=' ')
-            else:
-                print("Closed: ya existe", end=' ')
-            
-            # Buscar fecha de asignación a personas específicas (First response)
-            if not issue_data.get('First response', '').strip():
-                first_response_result = jira.get_assignee_change_date(issue_key, target_assignees)
-                if first_response_result:
-                    issue_data['First response'] = first_response_result['date']
-                    encontrados_first_response += 1
-                    print("First response: OK", end=' ')
                 else:
-                    print("First response: no encontrado", end=' ')
+                    print("Closed: mantenido", end=' ')
+            
+            # Buscar fecha de asignación a personas específicas (First response) - SIEMPRE buscar para actualizar
+            first_response_result = jira.get_assignee_change_date(issue_key, target_assignees)
+            if first_response_result:
+                issue_data['First response'] = first_response_result['date']
+                encontrados_first_response += 1
+                print("First response: OK", end=' ')
             else:
-                print("First response: ya existe", end=' ')
+                if not issue_data.get('First response', '').strip():
+                    print("First response: no encontrado", end=' ')
+                else:
+                    print("First response: mantenido", end=' ')
             
             print()  # Nueva línea
             
