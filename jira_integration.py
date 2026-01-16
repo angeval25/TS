@@ -216,9 +216,9 @@ class JiraIntegration:
         """
         Obtiene el historial completo (changelog) de un issue.
         Implementa múltiples fallbacks según la documentación oficial:
-        1. Biblioteca jira con expand='changelog' (método preferido)
-        2. API v2 directa con ?expand=changelog
-        3. API v3 directa con /changelog endpoint (solo Cloud)
+        1. API v2 directa con ?expand=changelog (método preferido - más compatible)
+        2. Biblioteca jira con expand='changelog' (fallback)
+        3. API v3 directa con /changelog endpoint (solo Cloud, último recurso)
         
         Args:
             issue_key: La clave del issue (ej: TPGSOC-1329200)
@@ -228,36 +228,8 @@ class JiraIntegration:
         """
         changelog = []
         
-        # Método 1: Biblioteca jira con expand='changelog' (más simple y robusto)
-        try:
-            issue = self.jira.issue(issue_key, expand='changelog')
-            
-            # Verificar que el changelog existe
-            if hasattr(issue, 'changelog') and issue.changelog:
-                for history in issue.changelog.histories:
-                    created = history.created
-                    author = history.author
-                    author_name = author.displayName if hasattr(author, 'displayName') else str(author)
-                    
-                    for item in history.items:
-                        changelog.append({
-                            'issue_key': issue_key,
-                            'date': created,
-                            'author': author_name,
-                            'field': item.field,
-                            'from': item.fromString if hasattr(item, 'fromString') else '',
-                            'to': item.toString if hasattr(item, 'toString') else '',
-                            'from_id': getattr(item, 'from', None),
-                            'to_id': getattr(item, 'to', None)
-                        })
-            
-            if changelog:
-                return changelog
-        except Exception as e:
-            # Si falla, continuar con métodos alternativos
-            pass
-        
-        # Método 2: API v2 directa con ?expand=changelog (compatible con Server y Cloud)
+        # Método 1: API v2 directa con ?expand=changelog (MÁS COMPATIBLE - empezar aquí)
+        # Este es el método más confiable según la documentación - funciona en Server y Cloud
         try:
             url = f"{self.server}/rest/api/2/issue/{issue_key}?expand=changelog"
             auth = HTTPBasicAuth(self.email, self.api_token)
@@ -288,10 +260,40 @@ class JiraIntegration:
                 if changelog:
                     return changelog
         except Exception as e:
+            # Si falla, intentar método 2
+            pass
+        
+        # Método 2: Biblioteca jira con expand='changelog' (fallback)
+        # Nota: La biblioteca jira puede intentar usar v3, por eso es fallback
+        try:
+            issue = self.jira.issue(issue_key, expand='changelog')
+            
+            # Verificar que el changelog existe
+            if hasattr(issue, 'changelog') and issue.changelog:
+                for history in issue.changelog.histories:
+                    created = history.created
+                    author = history.author
+                    author_name = author.displayName if hasattr(author, 'displayName') else str(author)
+                    
+                    for item in history.items:
+                        changelog.append({
+                            'issue_key': issue_key,
+                            'date': created,
+                            'author': author_name,
+                            'field': item.field,
+                            'from': item.fromString if hasattr(item, 'fromString') else '',
+                            'to': item.toString if hasattr(item, 'toString') else '',
+                            'from_id': getattr(item, 'from', None),
+                            'to_id': getattr(item, 'to', None)
+                        })
+            
+            if changelog:
+                return changelog
+        except Exception as e:
             # Si falla, intentar método 3
             pass
         
-        # Método 3: API v3 directa con endpoint /changelog (solo Cloud, según documentación)
+        # Método 3: API v3 directa con endpoint /changelog (solo Cloud, último recurso)
         if self.jira_type == 'cloud':
             try:
                 # En API v3, el endpoint correcto es /rest/api/3/issue/{key}/changelog
