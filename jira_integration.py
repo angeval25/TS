@@ -47,11 +47,10 @@ class JiraIntegration:
         self.server = self.server.rstrip('/')
         
         # Initialize Jira connection
-        # Usar API v3 si está disponible, sino usar la versión por defecto
+        # Dejar que la biblioteca jira use la versión por defecto (compatible con v2 y v3)
         self.jira = JIRA(
             server=self.server,
-            basic_auth=(self.email, self.api_token),
-            options={'rest_api_version': '3'}  # Intentar usar API v3
+            basic_auth=(self.email, self.api_token)
         )
     
     def create_issue(self, project_key, summary, description, issue_type='Task', **kwargs):
@@ -235,9 +234,16 @@ class JiraIntegration:
         """
         changelog = self.get_changelog(issue_key)
         
+        if not changelog:
+            # Debug: verificar si el changelog está vacío
+            return None
+        
         # Ordenar changelog por fecha (del más antiguo al más nuevo) para asegurar que tomamos el PRIMER cambio
         # Convertir fechas a objetos datetime para comparar correctamente
         changelog_sorted = sorted(changelog, key=lambda x: x['date'] if x['date'] else datetime.min)
+        
+        # Debug: contar cambios de status
+        status_changes = [c for c in changelog_sorted if c['field'].lower() == 'status']
         
         for change in changelog_sorted:
             if change['field'].lower() == 'status' and change['to'] and target_status.lower() in change['to'].lower():
