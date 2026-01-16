@@ -5,7 +5,7 @@ Ejecuta una consulta JQL y llena la columna Clave en Libro1.xlsx
 from jira_integration import JiraIntegration
 import os
 from openpyxl import load_workbook, Workbook
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 def obtener_issues_y_actualizar_xlsx(archivo_xlsx='Libro1.xlsx', max_results=None):
     """
@@ -16,23 +16,16 @@ def obtener_issues_y_actualizar_xlsx(archivo_xlsx='Libro1.xlsx', max_results=Non
         max_results: Número máximo de resultados a obtener (None para todos)
     """
     
-    # Calcular fecha de hace 33 días desde HOY en UTC para consistencia entre workflow y local
-    # Usamos 33 días (no 30) para tener un margen amplio que siempre incluya el día actual
-    # Esto asegura que si el workflow se ejecuta a principios del día 15, incluya el día 15 completo
-    fecha_actual_utc = datetime.now(timezone.utc)
-    fecha_hace_33_dias = fecha_actual_utc - timedelta(days=33)
-    fecha_formato_jira = fecha_hace_33_dias.strftime('%Y-%m-%d')
-    
-    # Consulta JQL - 33 días hacia atrás desde HOY usando fecha específica
-    # Esto asegura que siempre use la fecha actual en UTC y incluya el día de hoy completamente
-    jql_query = f'created >= "{fecha_formato_jira}" AND project = TPGSOC AND assignee IN membersOf("RSOC ILATAM L1") ORDER BY created DESC'
+    # Consulta JQL usando horas (-720h = 30 días)
+    # Usamos horas en lugar de días para mayor precisión y consistencia
+    jql_query = 'created >= -720h AND project = TPGSOC AND assignee IN membersOf("RSOC ILATAM L1") ORDER BY created DESC'
     
     print("=" * 80)
     print("Obteniendo issues desde Jira")
     print("=" * 80)
     fecha_actual_utc = datetime.now(timezone.utc)
     print(f"\n[*] Fecha actual (UTC): {fecha_actual_utc.strftime('%Y-%m-%d %H:%M:%S')} UTC")
-    print(f"[*] Buscando issues desde: {fecha_formato_jira} (hace 33 días, incluye día actual)")
+    print(f"[*] Buscando issues desde: hace 720 horas (30 días)")
     print(f"\n[*] Consulta JQL:")
     print(f"    {jql_query}\n")
     
