@@ -73,11 +73,11 @@ class JiraIntegration:
     
     def search_issues(self, jql_query, max_results=50):
         """
-        Search for issues using JQL
+        Search for issues using JQL con paginación correcta usando API v3
         
         Args:
             jql_query: Consulta JQL
-            max_results: Número máximo de resultados
+            max_results: Número máximo de resultados (None para obtener todos)
             
         Returns:
             Lista de objetos Issue de la biblioteca jira
@@ -96,13 +96,20 @@ class JiraIntegration:
         next_page_token = None
         page_num = 0
         
-        while len(all_issues) < max_results:
+        # Si max_results es None, obtener todos los resultados disponibles
+        while max_results is None or len(all_issues) < max_results:
             # Formato correcto para /rest/api/3/search/jql
             # El body debe ser un objeto JSON con el campo 'jql' y opcionalmente 'nextPageToken'
             payload = {
                 'jql': jql_query,
-                'maxResults': min(max_results - len(all_issues), 50)  # API v3 limita a 50 por página
+                'maxResults': 50  # API v3 limita a 50 por página
             }
+            
+            # Si hay un límite y estamos cerca, ajustar maxResults
+            if max_results is not None:
+                remaining = max_results - len(all_issues)
+                if remaining < 50:
+                    payload['maxResults'] = remaining
             
             # Si hay un token de siguiente página, usarlo
             if next_page_token:
@@ -125,6 +132,10 @@ class JiraIntegration:
                 
                 # Obtener cada issue usando la biblioteca jira
                 for issue_data in issues_data:
+                    # Si tenemos un límite y ya lo alcanzamos, salir
+                    if max_results is not None and len(all_issues) >= max_results:
+                        break
+                    
                     # En API v3, la estructura puede ser diferente
                     # Intentar diferentes formas de acceder a la key
                     issue_key = None
@@ -152,8 +163,8 @@ class JiraIntegration:
                 # Mostrar progreso
                 print(f"    Progreso: {len(all_issues)} issues obtenidos (página {page_num})...", end='\r')
                 
-                # Si es la última página o alcanzamos el límite, salir
-                if is_last or len(all_issues) >= max_results or not next_page_token:
+                # Si es la última página, alcanzamos el límite, o no hay más páginas, salir
+                if is_last or (max_results is not None and len(all_issues) >= max_results) or not next_page_token:
                     break
                     
             except requests.exceptions.RequestException as e:
@@ -162,7 +173,10 @@ class JiraIntegration:
                     print(f"Response: {e.response.text}")
                 break
         
-        return all_issues[:max_results]
+        # Si hay un límite, retornar solo hasta ese límite
+        if max_results is not None:
+            return all_issues[:max_results]
+        return all_issues
     
     def get_changelog(self, issue_key: str) -> List[Dict]:
         """
