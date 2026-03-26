@@ -52,13 +52,13 @@ steps:
     config_lines.append('}')
     config_lines.append('')
     config_lines.append('# Lista de personas para First Response')
+    import json, re
     assignees_str = os.environ.get('FIRST_RESPONSE_ASSIGNEES', '')
     if assignees_str:
+        # Limpiar comillas, corchetes y espacios extra que puedan venir de Azure Library
+        assignees_str = re.sub(r\"[\\[\\]'\\\"]\", '', assignees_str)
         assignees_list = [a.strip() for a in assignees_str.split(',') if a.strip()]
-        config_lines.append('FIRST_RESPONSE_ASSIGNEES = [')
-        for assignee in assignees_list:
-            config_lines.append(f\"    '{assignee}'\")
-        config_lines.append(']')
+        config_lines.append(f'FIRST_RESPONSE_ASSIGNEES = {json.dumps(assignees_list, ensure_ascii=False)}')
         print(f'First Response Assignees configurados: {len(assignees_list)} personas')
     else:
         config_lines.append('# FIRST_RESPONSE_ASSIGNEES no configurado en secrets')
